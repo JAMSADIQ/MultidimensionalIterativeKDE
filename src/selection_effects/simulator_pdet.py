@@ -188,6 +188,24 @@ def pdet_of_m1_dL_marginalized_over_m2_Efficient_with_simpson(m1_det_grid, m2_de
     pdet_marginalized_over_m2 = integrate.simpson(PDET, m2_vals, axis=1)/normalization_factor
     return pdet_marginalized_over_m2
 
+def pdet_of_m1_dL_powerlawm2_combined(m1i, m_min, dLi, beta=1.26, classcall=g, mass_frame='detector'):
+    """
+    Evaluate VT for the given m1 value marginalizing over
+    m2 using a power law distribution with parameters m_min, beta.
+    """
+    def integrand(m2):
+        """
+        Integrand for the power-law m2 distribution.
+        """
+        return calculate_pdet_m1m2dL(m1i, m2, dLi, classcall=classcall, mass_frame= mass_frame) * pdfm2_powerlaw(m2, m_min, m1i, beta=beta)
+
+    # Perform the integration
+    result, _ = integrate.quad(integrand, m_min, m1i, epsrel=1.5e-04)
+    return result
+
+
+
+
 ########################PLOTS ##################################################
 def m1_dLplot(m1src_grid, DLsrc_grid, pdet_m1_dL, plot_tag='power_law', save_tag='correct', pathplot='./'):
     """
@@ -282,8 +300,16 @@ m1_det_2Dgrid, dL_2Dgrid = m1_det_3Dgrid[:, 0, :], DL_det_3Dgrid[:, 0, :]
 #m1_det_2Dgrid, dL_2Dgrid = np.meshgrid(m1_det, dL_vals, indexing='ij')
 
 ##### correct way to get pdet is either use mass_frame='detector' or use source frame removing mass_frame
-mmin = 2.999 #min of integration for m2
-beta_index = 1.26  #index of power law for q 
+m_min = 2.999 #min of integration for m2 #we need 5 but also chnage m1 grid
+power_index= 0.0 #for marginzalization
+pdet_marginalized_over_m2 = np.zeros((len(m1_det), len(dL_vals)), dtype=float)
+pdet_power_law_m2 = np.zeros((len(m1_det), len(dL_vals)), dtype=float)
+for i, mval in enumerate(m1_det):
+    for j, dLval in enumerate(dL_vals):
+        pdet_marginalized_over_m2[i, j] =  pdet_of_m1_dL_powerlawm2_combined(mval, m_min, dLval, beta=power_index, classcall=g, mass_frame='detector')
+        pdet_power_law_m2[i, j] =  pdet_of_m1_dL_powerlawm2_combined(mval, m_min, dLval, beta=1.26, classcall=g, mass_frame='detector')
+m1_dLplot(m1src_2Dgrid, dLsrc_2Dgrid, pdet_marginalized_over_m2, plot_tag='marginalize', pathplot=pathplot)
+m1_dLplot(m1src_2Dgrid, dLsrc_2Dgrid, pdet_power_law_m2, plot_tag='power_law', pathplot=pathplot)
 #pdet_m1dLpowerlawm2 = pdet_of_m1_dL_powerlawm2(m1_det_2Dgrid, mmin, dLsrc_2Dgrid, beta=1.26, classcall=g, mass_frame='detector')
 #to check the difference if we use masses in wrong frame
 #Incorrect_pdet_m1dLpowerlawm2 = pdet_of_m1_dL_powerlawm2(m1src_2Dgrid, mmin,dDLsrc_2Dgrid, beta=1.26, classcall=g, mass_frame='detector')
