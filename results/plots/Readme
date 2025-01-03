@@ -1,1 +1,6 @@
 Explain plots in this repository
+1: AllPE samples 100 per event without filtering bad ones
+2: scatter plot with pdet (m1, dL) using m2 as uniform or power law
+      a: correct mass in pdet calculation
+      b: Incorrect mass (source frame mass used in) pdet calculation
+
