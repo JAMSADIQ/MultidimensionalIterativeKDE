@@ -1,8 +1,7 @@
 Here we will Results in tabular format (e.g., CSV, JSON).
-Events with Bad Samples that we removed: not as we used pdet < 5e-4 to remove samples form the events
-below some samples we lost; we may need to use another way to remove outlier samples
+Events with Bad Samples that we removed in preprocessing using injections
 
 | Event name       | # of bad samples removed |
 | -----------------| --------------- ---------|
-| GW190719_215514  |       12              |
-| GW190805_211137  |       30              |
+| GW190719_215514  |       3              |
+| GW190805_211137  |       5              |
