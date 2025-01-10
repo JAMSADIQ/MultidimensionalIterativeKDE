@@ -1,0 +1,695 @@
+[
+    {
+        "commonName": "GW200316_215756",
+        "mass_1_source": 13.1,
+        "mass_2_source": 7.8,
+        "luminosity_distance": 1120.0,
+        "redshift": 0.22,
+        "far": 1e-05,
+        "chi_eff": 0.13,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200311_115853",
+        "mass_1_source": 34.2,
+        "mass_2_source": 27.7,
+        "luminosity_distance": 1170.0,
+        "redshift": 0.23,
+        "far": 1e-05,
+        "chi_eff": -0.02,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200302_015811",
+        "mass_1_source": 37.8,
+        "mass_2_source": 20.0,
+        "luminosity_distance": 1480.0,
+        "redshift": 0.28,
+        "far": 0.11,
+        "chi_eff": 0.01,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200225_060421",
+        "mass_1_source": 19.3,
+        "mass_2_source": 14.0,
+        "luminosity_distance": 1150.0,
+        "redshift": 0.22,
+        "far": 1.1e-05,
+        "chi_eff": -0.12,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200224_222234",
+        "mass_1_source": 40.0,
+        "mass_2_source": 32.7,
+        "luminosity_distance": 1710.0,
+        "redshift": 0.32,
+        "far": 1e-05,
+        "chi_eff": 0.1,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200219_094415",
+        "mass_1_source": 37.5,
+        "mass_2_source": 27.9,
+        "luminosity_distance": 3400.0,
+        "redshift": 0.57,
+        "far": 0.00099,
+        "chi_eff": -0.08,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200216_220804",
+        "mass_1_source": 51.0,
+        "mass_2_source": 30.0,
+        "luminosity_distance": 3800.0,
+        "redshift": 0.63,
+        "far": 0.35,
+        "chi_eff": 0.1,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200209_085452",
+        "mass_1_source": 35.6,
+        "mass_2_source": 27.1,
+        "luminosity_distance": 3400.0,
+        "redshift": 0.57,
+        "far": 0.046,
+        "chi_eff": -0.12,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200208_130117",
+        "mass_1_source": 37.7,
+        "mass_2_source": 27.4,
+        "luminosity_distance": 2230.0,
+        "redshift": 0.4,
+        "far": 0.00031,
+        "chi_eff": -0.07,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200202_154313",
+        "mass_1_source": 10.1,
+        "mass_2_source": 7.3,
+        "luminosity_distance": 410.0,
+        "redshift": 0.09,
+        "far": 1e-05,
+        "chi_eff": 0.04,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200129_065458",
+        "mass_1_source": 34.5,
+        "mass_2_source": 29.0,
+        "luminosity_distance": 890.0,
+        "redshift": 0.18,
+        "far": 1e-05,
+        "chi_eff": 0.11,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW200128_022011",
+        "mass_1_source": 42.2,
+        "mass_2_source": 32.6,
+        "luminosity_distance": 3400.0,
+        "redshift": 0.56,
+        "far": 0.0043,
+        "chi_eff": 0.12,
+        "chirp_mass": null
+    },
+ 
+    {
+        "commonName": "GW200112_155838",
+        "mass_1_source": 35.6,
+        "mass_2_source": 28.3,
+        "luminosity_distance": 1250.0,
+        "redshift": 0.24,
+        "far": 1e-05,
+        "chi_eff": 0.06,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191230_180458",
+        "mass_1_source": 49.4,
+        "mass_2_source": 37.0,
+        "luminosity_distance": 4300.0,
+        "redshift": 0.69,
+        "far": 0.05,
+        "chi_eff": -0.05,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191222_033537",
+        "mass_1_source": 45.1,
+        "mass_2_source": 34.7,
+        "luminosity_distance": 3000.0,
+        "redshift": 0.51,
+        "far": 1e-05,
+        "chi_eff": -0.04,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191216_213338",
+        "mass_1_source": 12.1,
+        "mass_2_source": 7.7,
+        "luminosity_distance": 340.0,
+        "redshift": 0.07,
+        "far": 1e-05,
+        "chi_eff": 0.11,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191215_223052",
+        "mass_1_source": 24.9,
+        "mass_2_source": 18.1,
+        "luminosity_distance": 1930.0,
+        "redshift": 0.35,
+        "far": 1e-05,
+        "chi_eff": -0.04,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191204_171526",
+        "mass_1_source": 11.7,
+        "mass_2_source": 8.4,
+        "luminosity_distance": 640.0,
+        "redshift": 0.13,
+        "far": 1e-05,
+        "chi_eff": 0.16,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191129_134029",
+        "mass_1_source": 10.7,
+        "mass_2_source": 6.7,
+        "luminosity_distance": 790.0,
+        "redshift": 0.16,
+        "far": 1e-05,
+        "chi_eff": 0.06,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191127_050227",
+        "mass_1_source": 53.0,
+        "mass_2_source": 24.0,
+        "luminosity_distance": 3400.0,
+        "redshift": 0.57,
+        "far": 0.25,
+        "chi_eff": 0.18,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191109_010717",
+        "mass_1_source": 65.0,
+        "mass_2_source": 47.0,
+        "luminosity_distance": 1290.0,
+        "redshift": 0.25,
+        "far": 0.00018,
+        "chi_eff": -0.29,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191105_143521",
+        "mass_1_source": 10.7,
+        "mass_2_source": 7.7,
+        "luminosity_distance": 1150.0,
+        "redshift": 0.23,
+        "far": 0.012,
+        "chi_eff": -0.02,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW191103_012549",
+        "mass_1_source": 11.8,
+        "mass_2_source": 7.9,
+        "luminosity_distance": 990.0,
+        "redshift": 0.2,
+        "far": 0.46,
+        "chi_eff": 0.21,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190930_133541",
+        "mass_1_source": 14.2,
+        "mass_2_source": 6.9,
+        "luminosity_distance": 770.0,
+        "redshift": 0.16,
+        "far": 0.012,
+        "chi_eff": 0.19,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190929_012149",
+        "mass_1_source": 66.3,
+        "mass_2_source": 26.8,
+        "luminosity_distance": 3130.0,
+        "redshift": 0.53,
+        "far": 0.16,
+        "chi_eff": -0.03,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190925_232845",
+        "mass_1_source": 20.8,
+        "mass_2_source": 15.5,
+        "luminosity_distance": 930.0,
+        "redshift": 0.19,
+        "far": 0.0072,
+        "chi_eff": 0.09,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190924_021846",
+        "mass_1_source": 8.8,
+        "mass_2_source": 5.1,
+        "luminosity_distance": 550.0,
+        "redshift": 0.11,
+        "far": 1e-05,
+        "chi_eff": 0.03,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190915_235702",
+        "mass_1_source": 32.6,
+        "mass_2_source": 24.5,
+        "luminosity_distance": 1750.0,
+        "redshift": 0.32,
+        "far": 1e-05,
+        "chi_eff": -0.03,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190910_112807",
+        "mass_1_source": 43.8,
+        "mass_2_source": 34.2,
+        "luminosity_distance": 1520.0,
+        "redshift": 0.29,
+        "far": 0.0029,
+        "chi_eff": 0.0,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190828_065509",
+        "mass_1_source": 23.7,
+        "mass_2_source": 10.4,
+        "luminosity_distance": 1540.0,
+        "redshift": 0.29,
+        "far": 3.5e-05,
+        "chi_eff": 0.05,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190828_063405",
+        "mass_1_source": 31.9,
+        "mass_2_source": 25.8,
+        "luminosity_distance": 2070.0,
+        "redshift": 0.38,
+        "far": 1e-05,
+        "chi_eff": 0.15,
+        "chirp_mass": null
+    },
+
+    {
+        "commonName": "GW190805_211137",
+        "mass_1_source": 46.2,
+        "mass_2_source": 30.6,
+        "luminosity_distance": 6130.0,
+        "redshift": 0.92,
+        "far": 0.63,
+        "chi_eff": 0.37,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190803_022701",
+        "mass_1_source": 37.7,
+        "mass_2_source": 27.6,
+        "luminosity_distance": 3190.0,
+        "redshift": 0.54,
+        "far": 0.073,
+        "chi_eff": -0.01,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190731_140936",
+        "mass_1_source": 41.8,
+        "mass_2_source": 29.0,
+        "luminosity_distance": 3330.0,
+        "redshift": 0.56,
+        "far": 0.33,
+        "chi_eff": 0.07,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190728_064510",
+        "mass_1_source": 12.5,
+        "mass_2_source": 8.0,
+        "luminosity_distance": 880.0,
+        "redshift": 0.18,
+        "far": 1e-05,
+        "chi_eff": 0.13,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190727_060333",
+        "mass_1_source": 38.9,
+        "mass_2_source": 30.2,
+        "luminosity_distance": 3070.0,
+        "redshift": 0.52,
+        "far": 1e-05,
+        "chi_eff": 0.09,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190725_174728",
+        "mass_1_source": 11.8,
+        "mass_2_source": 6.3,
+        "luminosity_distance": 1030.0,
+        "redshift": 0.2,
+        "far": 0.46,
+        "chi_eff": -0.04,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190720_000836",
+        "mass_1_source": 14.2,
+        "mass_2_source": 7.5,
+        "luminosity_distance": 770.0,
+        "redshift": 0.16,
+        "far": 1e-05,
+        "chi_eff": 0.19,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190719_215514",
+        "mass_1_source": 36.6,
+        "mass_2_source": 19.9,
+        "luminosity_distance": 3730.0,
+        "redshift": 0.61,
+        "far": 0.63,
+        "chi_eff": 0.25,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190708_232457",
+        "mass_1_source": 19.8,
+        "mass_2_source": 11.6,
+        "luminosity_distance": 930.0,
+        "redshift": 0.19,
+        "far": 0.00031,
+        "chi_eff": 0.05,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190707_093326",
+        "mass_1_source": 12.1,
+        "mass_2_source": 7.9,
+        "luminosity_distance": 850.0,
+        "redshift": 0.17,
+        "far": 1e-05,
+        "chi_eff": -0.04,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190706_222641",
+        "mass_1_source": 74.0,
+        "mass_2_source": 39.4,
+        "luminosity_distance": 3630.0,
+        "redshift": 0.6,
+        "far": 5e-05,
+        "chi_eff": 0.28,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190701_203306",
+        "mass_1_source": 54.1,
+        "mass_2_source": 40.5,
+        "luminosity_distance": 2090.0,
+        "redshift": 0.38,
+        "far": 0.0057,
+        "chi_eff": -0.08,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190630_185205",
+        "mass_1_source": 35.1,
+        "mass_2_source": 24.0,
+        "luminosity_distance": 870.0,
+        "redshift": 0.18,
+        "far": 1e-05,
+        "chi_eff": 0.1,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190620_030421",
+        "mass_1_source": 58.0,
+        "mass_2_source": 35.0,
+        "luminosity_distance": 2910.0,
+        "redshift": 0.5,
+        "far": 0.011,
+        "chi_eff": 0.34,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190602_175927",
+        "mass_1_source": 71.8,
+        "mass_2_source": 44.8,
+        "luminosity_distance": 2840.0,
+        "redshift": 0.49,
+        "far": 1e-05,
+        "chi_eff": 0.12,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190527_092055",
+        "mass_1_source": 35.6,
+        "mass_2_source": 22.2,
+        "luminosity_distance": 2520.0,
+        "redshift": 0.44,
+        "far": 0.23,
+        "chi_eff": 0.1,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190521_074359",
+        "mass_1_source": 43.4,
+        "mass_2_source": 33.4,
+        "luminosity_distance": 1080.0,
+        "redshift": 0.21,
+        "far": 1e-05,
+        "chi_eff": 0.1,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190521",
+        "mass_1_source": 98.4,
+        "mass_2_source": 57.2,
+        "luminosity_distance": 3310.0,
+        "redshift": 0.56,
+        "far": 0.0013,
+        "chi_eff": -0.14,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190519_153544",
+        "mass_1_source": 65.1,
+        "mass_2_source": 40.8,
+        "luminosity_distance": 2600.0,
+        "redshift": 0.45,
+        "far": 1e-05,
+        "chi_eff": 0.33,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190517_055101",
+        "mass_1_source": 39.2,
+        "mass_2_source": 24.0,
+        "luminosity_distance": 1790.0,
+        "redshift": 0.33,
+        "far": 0.00035,
+        "chi_eff": 0.49,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190513_205428",
+        "mass_1_source": 36.0,
+        "mass_2_source": 18.3,
+        "luminosity_distance": 2210.0,
+        "redshift": 0.4,
+        "far": 1.3e-05,
+        "chi_eff": 0.16,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190512_180714",
+        "mass_1_source": 23.2,
+        "mass_2_source": 12.5,
+        "luminosity_distance": 1460.0,
+        "redshift": 0.28,
+        "far": 1e-05,
+        "chi_eff": 0.02,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190503_185404",
+        "mass_1_source": 41.3,
+        "mass_2_source": 28.3,
+        "luminosity_distance": 1520.0,
+        "redshift": 0.29,
+        "far": 1e-05,
+        "chi_eff": -0.05,
+        "chirp_mass": null
+    },
+  
+        {
+        "commonName": "GW190421_213856",
+        "mass_1_source": 42.0,
+        "mass_2_source": 32.0,
+        "luminosity_distance": 2590.0,
+        "redshift": 0.45,
+        "far": 0.0028,
+        "chi_eff": -0.1,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190413_134308",
+        "mass_1_source": 51.3,
+        "mass_2_source": 30.4,
+        "luminosity_distance": 3800.0,
+        "redshift": 0.62,
+        "far": 0.18,
+        "chi_eff": -0.01,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190413_052954",
+        "mass_1_source": 33.7,
+        "mass_2_source": 24.2,
+        "luminosity_distance": 3320.0,
+        "redshift": 0.56,
+        "far": 0.82,
+        "chi_eff": -0.04,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190412",
+        "mass_1_source": 27.7,
+        "mass_2_source": 9.0,
+        "luminosity_distance": 720.0,
+        "redshift": 0.15,
+        "far": 1e-05,
+        "chi_eff": 0.21,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW190408_181802",
+        "mass_1_source": 24.8,
+        "mass_2_source": 18.5,
+        "luminosity_distance": 1540.0,
+        "redshift": 0.29,
+        "far": 1e-05,
+        "chi_eff": -0.03,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW170823",
+        "mass_1_source": 39.5,
+        "mass_2_source": 29.0,
+        "luminosity_distance": 1940.0,
+        "redshift": 0.35,
+        "far": 1e-07,
+        "chi_eff": 0.09,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW170818",
+        "mass_1_source": 35.4,
+        "mass_2_source": 26.7,
+        "luminosity_distance": 1060.0,
+        "redshift": 0.21,
+        "far": 4.2000000000000004e-05,
+        "chi_eff": -0.09,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW170814",
+        "mass_1_source": 30.6,
+        "mass_2_source": 25.2,
+        "luminosity_distance": 600.0,
+        "redshift": 0.12,
+        "far": 1e-07,
+        "chi_eff": 0.07,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW170809",
+        "mass_1_source": 35.0,
+        "mass_2_source": 23.8,
+        "luminosity_distance": 1030.0,
+        "redshift": 0.2,
+        "far": 1e-07,
+        "chi_eff": 0.08,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW170729",
+        "mass_1_source": 50.2,
+        "mass_2_source": 34.0,
+        "luminosity_distance": 2840.0,
+        "redshift": 0.49,
+        "far": 0.02,
+        "chi_eff": 0.37,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW170608",
+        "mass_1_source": 11.0,
+        "mass_2_source": 7.6,
+        "luminosity_distance": 320.0,
+        "redshift": 0.07,
+        "far": 1e-07,
+        "chi_eff": 0.03,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW170104",
+        "mass_1_source": 30.8,
+        "mass_2_source": 20.0,
+        "luminosity_distance": 990.0,
+        "redshift": 0.2,
+        "far": 1e-07,
+        "chi_eff": -0.04,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW151226",
+        "mass_1_source": 13.7,
+        "mass_2_source": 7.7,
+        "luminosity_distance": 450.0,
+        "redshift": 0.09,
+        "far": 1e-07,
+        "chi_eff": 0.18,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW151012",
+        "mass_1_source": 23.2,
+        "mass_2_source": 13.6,
+        "luminosity_distance": 1080.0,
+        "redshift": 0.21,
+        "far": 0.00792,
+        "chi_eff": 0.05,
+        "chirp_mass": null
+    },
+    {
+        "commonName": "GW150914",
+        "mass_1_source": 35.6,
+        "mass_2_source": 30.6,
+        "luminosity_distance": 440.0,
+        "redshift": 0.09,
+        "far": 1e-07,
+        "chi_eff": -0.01,
+        "chirp_mass": null
+    }
+]
