@@ -1,1 +1,3 @@
 This folder have main  data files that can be used to test the codes
+
+It is crucial to know that .jsob file have median results for pe samples compute with c=non-cosmological reweighted sampling. so in our analysis we have slightly different numbers for median values
