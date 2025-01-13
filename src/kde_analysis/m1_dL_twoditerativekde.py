@@ -1,4 +1,7 @@
 import sys
+sys.path.append('pop-de/popde/')
+import density_estimate as d
+import adaptive_kde as ad
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,6 +12,8 @@ from matplotlib import rcParams
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import pickle
+import utils_plot as u_plot
+import o123_class_found_inj_general as u_pdet
 
 # Set Matplotlib parameters for consistent plotting
 rcParams.update({
@@ -28,10 +33,16 @@ rcParams.update({
 })
 
 parser = argparse.ArgumentParser(description="Density estimation and reweighting pipeline.")
-# Input files #maybe we can combine these three to one
+# Input files #maybe we should combine these three to one
 parser.add_argument('--datafilename1', required=True, help='H5 file containing N samples for m1.')
 parser.add_argument('--datafilename2', required=True, help='H5 file containing N samples for parameter2.')
 parser.add_argument('--datafilename3', required=True, help='H5 file containing N samples of parameter3.')
+# for removing bad samples based on sensitivity search injection study by LVK
+parser.add_argument('--injectionfile',  help='H5 file from GWTC3 public data for search sensitivity.', default='endo3_bbhpop-LIGO-T2100113-v12.hdf5')
+#for pdet calculation
+parser.add_argument('--power-index-m2',  type=float, default=1.26, help='beta or power index for m2 distribution in pdet calculation')
+parser.add_argument('--min-m2-integration',  type=float, default=5.0, help='minimum intgeration limit for m2. It can be problematic if min is smaller than smallest m1 value.')
+
 # Parameters
 parser.add_argument('--parameter1', default='m1', help='Name of parameter for x-axis of KDE.')
 parser.add_argument('--parameter2', default='m2', help='Name of parameter for y-axis of KDE.')
@@ -48,6 +59,7 @@ parser.add_argument('--param3-min', default=10., type=float, help='Minimum value
 parser.add_argument('--param3-max', default=10000., type=float, help='Maximum value for parameter 3 if it is dL else if Xieff  use +1')
 
 #Expectation Maximization Algorithm Reweighting
+parser.add_argument('--fpopchoice', default='kde', help='choice of fpop to be rate or kde', type=str)
 parser.add_argument('--reweight-method', default='bufferkdevals', type=str, help=('Reweighting method for Gaussian sample shift: ''"bufferkdevals" uses buffered KDE values, and "bufferkdeobject" uses buffered KDE objects.'))
 parser.add_argument('--reweight-sample-option', default='reweight', type=str, help=('Option to reweight samples: choose "noreweight" to skip reweighting or "reweight" ''to use fpop probabilities for reweighting. If "reweight", one sample is used ''for no bootstrap, and multiple samples are used for Poisson.'))
 parser.add_argument('--bootstrap-option', default='poisson', type=str, help=('Bootstrap method: choose "poisson" for Poisson resampling or "nopoisson" to skip it. ''If "None", reweighting will be based on fpop probabilities, with a single reweighted sample for each event.')
@@ -66,19 +78,25 @@ opts = parser.parse_args()
 H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
+def get_massed_indetector_frame(dLMpc, mass):
+    zcosmo = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
+    mdet = mass*(1.0 + zcosmo)
+    return mdet
 
-def get_redshift_from_distance(dL_Mpc):
+def get_mass_in_detector_frame(dL_Mpc, mass):
     """
     Compute the redshift corresponding to a luminosity distance.
-
+    and get detector frame mass
     Args:
-        dL_Mpc (float): Luminosity distance in megaparsecs (Mpc).
+        dL_Mpc (float/array): Luminosity distance in megaparsecs (Mpc).
+        mass (float/array): source frame mass.
 
     Returns:
-        float: Corresponding redshift.
+        float/array: Corresponding detector frame mass
     """
-    return z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc)
-
+    zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc)
+    mdet = mass*(1.0 + zcosmo)
+    return mdet
 
 def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
     """
@@ -123,8 +141,8 @@ def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
         np.array(filtered_indices)
     )
 
-
-def compute_pdet(mass_detector_frame, dL, beta, class_instance):
+#we are not using it now but will integrate it in future
+def compute_pdet(mass_detector_frame, dL, beta, class_instance, classcall=None, min_m2=5.0):
     """
     Compute detection probability using given parameters.
 
@@ -133,34 +151,36 @@ def compute_pdet(mass_detector_frame, dL, beta, class_instance):
         dL (float): Luminosity distance.
         beta (float): Power-law index.
         class_instance: Instance of a class with a method to compute pdet.
+        min_m2 (float): minimum for integration over m2, default = 5.0
 
     Returns:
         float: Detection probability.
     """
     return class_instance.pdet_of_m1_dL_powerlawm2(
-        mass_detector_frame, 5.0, dL, beta=beta
+        mass_detector_frame, min_m2, dL, beta=beta, classcall=classcall
     )
 
 
 def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
-  """
-  Applies the max(max_pdet_cap, pdet) function to each element in the given list.
+    """
+    Applies the max(max_pdet_cap, pdet) function to each element in the given list.
 
-  Args:
-    pdet_list: A list of values.
-    max_pdet_cap: The maximum allowed value for each element. 
+    Args:
+        pdet_list: A list of values.
+        max_pdet_cap: The maximum allowed value for each element. 
                   Defaults to 0.1.
 
-  Returns:
-    A numpy array containing the results of applying the function to each element.
-  """
+    Returns:
+        A numpy array containing the results of applying the function to each element.
+    """
 
-  result = []
-  for pdet in pdet_list:
-    result.append(max(max_pdet_cap, pdet))
-  return np.array(result)
+    result = []
+    for pdet in pdet_list:
+        result.append(max(max_pdet_cap, pdet))
+    return np.array(result)
 
 
+#this is specific to m1-dL analysis note for 3D we need to fix this
 def prior_factor_function(samples, logkde=False):
     """
     Compute a prior factor for reweighting based on uniform priors.
@@ -173,6 +193,7 @@ def prior_factor_function(samples, logkde=False):
     Returns:
         np.ndarray: Prior factor for each sample.
     """
+    #add a warning here to make sure this is for m1-dL case not m1m2dL
     m1_values, dL_values = samples[:, 0], samples[:, 1]
     if logkde:
         return 1.0 / (dL_values ** 2)
@@ -346,7 +367,7 @@ def mean_bufferkdelist_reweighted_samples(original_samples, pdetvals, mean_kde_i
         reweighted_sample = rng.choice(original_samples, p=norm_mediankdevals)
     return reweighted_sample
 
-
+# we should make bounds inside arguments to keep bwz max limit
 def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('log', 'none')):
     """
     Create a KDE object with rescaling optimization, optimize its parameters, 
@@ -397,7 +418,7 @@ def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('
 
     """
     kde_object = ad.KDERescaleOptimization(sample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'dL'], input_transf=input_transf)
-    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0,1)), disp=True, tol=0.1)#, xatol=0.01, fatol=0.1)
+    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0,1)), disp=True)#, xatol=0.01, fatol=0.1)
     kde_vals = kde_object.evaluate_with_transf(eval_pts)
     optbwds = [1.0/dictopt[0], 1.0/dictopt[1]]
     optalpha = dictopt[-1]
@@ -408,17 +429,262 @@ def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('
 
 # Main execution begins here
 #STEP I: call the PE sample data and get PDET on PE samples using power law on m2
+injection_file = opts.injectionfile 
+#see this link: https://zenodo.org/records/7890437
+injection_file = "/home/jxs1805/Research/CITm1dL/endo3_bbhpop-LIGO-T2100113-v12.hdf5"
+with h5.File(injection_file, 'r') as f:
+    T_obs = f.attrs['analysis_time_s']/(365.25*24*3600) # years
+    N_draw = f.attrs['total_generated']
+    injection_m1 = f['injections/mass1_source'][:]
+    m2 = f['injections/mass2_source'][:]
+    s1x = f['injections/spin1x'][:]
+    s1y = f['injections/spin1y'][:]
+    s1z = f['injections/spin1z'][:]
+    s2x = f['injections/spin2x'][:]
+    s2y = f['injections/spin2y'][:]
+    s2z = f['injections/spin2z'][:]
+    z = f['injections/redshift'][:]
+    injection_dL = f["injections/distance"][:]
+    injection_m1_det = injection_m1*(1.0 +  z)
+    p_draw = f['injections/sampling_pdf'][:]
+    pastro_pycbc_bbh = f['injections/pastro_pycbc_bbh'][:]
 
+f.close()
+#here we need pdet
+run_fit = 'o3'
+run_dataset = 'o3'
+dmid_fun = 'Dmid_mchirp_fdmid_fspin' #'Dmid_mchirp_fdmid'
+emax_fun = 'emax_exp'
+alpha_vary = None
+g = u_pdet.Found_injections(dmid_fun = 'Dmid_mchirp_fdmid_fspin', emax_fun='emax_exp', alpha_vary = None, ini_files = None, thr_far = 1, thr_snr = 10)
+
+fz = h5.File(opts.datafilename3, 'r') #redshift values need for mdet
+#fz = h5.File('/home/jxs1805/Research/CITm1dL/PEfiles/Final_noncosmo_GWTC3_redshift_datafile.h5', 'r')
+dz1 = fz['randdata']
+
+fm1 = h5.File(opts.datafilename1, 'r')
+#fm1 = h5.File('/home/jxs1805/Research/CITm1dL/PEfiles/Final_noncosmo_GWTC3_m1srcdatafile.h5', 'r')
+d1 = fm1['randdata']
+
+f2dL = h5.File(opts.datafilename2, 'r')
+#f2dL = h5.File('/home/jxs1805/Research/CITm1dL/PEfiles/Final_noncosmo_GWTC3_dL_datafile.h5', 'r')
+d2 = f2dL['randdata']
+
+# to save samples for iterative reweighting
+sampleslists1 = []
+medianlist1 = []
+eventlist = []
+sampleslists2 = []
+medianlist2 = []
+pdetlists = []
+
+for k in d1.keys():
+    eventlist.append(k)
+    if (k  == 'GW190719_215514_mixed-nocosmo' or k == 'GW190805_211137_mixed-nocosmo'):
+        print(k)
+        d_Lvalues = d2[k][...]
+        m_values = d1[k][...]
+        mdet_values = d1[k][...]*(1.0 + dz1[k][...])
+        m_values, d_Lvalues, correct_indices =  preprocess_data(injection_m1, injection_dL, m_values, d_Lvalues, num_bins=10)
+        mdet_values = mdet_values[correct_indices]
+        pdet_values =  np.zeros(len(d_Lvalues))
+        for i in range(len(d_Lvalues)):
+            #we should use compute_pdet function here (to be done in future) 
+            #we need to using opts for 5 as min m2 in integration and beta is also chosen from opts 
+            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], 5.0, d_Lvalues[i], beta=1.26, classcall=g)
+    else:
+        m_values = d1[k][...]
+        mdet_values = d1[k][...]*(1.0 + dz1[k][...])
+        d_Lvalues = d2[k][...]
+        pdet_values =  np.zeros(len(d_Lvalues))
+        for i in range(len(d_Lvalues)):
+            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], 5.0, d_Lvalues[i], beta=1.26, classcall=g)
+    pdetlists.append(pdet_values)
+    sampleslists1.append(m_values)
+    sampleslists2.append(d_Lvalues)
+    medianlist1.append(np.percentile(m_values, 50))
+    medianlist2.append(np.percentile(d_Lvalues, 50))
+
+fm1.close()
+f2dL.close()
+fz.close()
+
+meanxi1 = np.array(medianlist1)
+meanxi2 = np.array(medianlist2)
+flat_samples1 = np.concatenate(sampleslists1).flatten()
+flat_samples2 = np.concatenate(sampleslists2).flatten()
+flat_pdetlist = np.concatenate(pdetlists).flatten()
+print("for 69 events the total clean pe samples  = ", len(flat_pdetlist))
 #plot of pdet as function of m1-dL after removing bad samples
+u_plot.plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',save_name="pdet_power_law_m2_correct_mass_frame_m1_dL_scatter.png", pathplot=opts.pathplot, show_plot=False)
 
-#STEP II: get median PE sample KDE plot it
 
+#STEP II: get KDE  from median PE samples & plot it
+sampleslists = np.vstack((flat_samples1, flat_samples2)).T
+sample = np.vstack((meanxi1, meanxi2)).T
+print("shape of train samples =", sampleslists.shape)
+#eval grid 
+if opts.m1_min is not None and opts.m1_max is not None:
+    xmin, xmax = opts.m1_min, opts.m1_max
+else:
+    xmin, xmax = min([a.min() for a in sampleslists]), max([a.max() for a in sampleslists])
+#### we are using fix in this analysis 
+xmin, xmax = 5, 105
 
+if opts.param2_min is not None and opts.param2_max is not None:
+    ymin, ymax = opts.param2_min, opts.param2_max
+else:
+    ymin, ymax = min([a.min() for a in sampleslists]), max([a.max() for a in sampleslists])
+#############we are using fixed dL gri 10-10000Mpc
+ymin, ymax = 10, 8000
+Npoints = opts.Npoints #200 bydefault
+#we need log space points for m1, linear in dL
+p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
+p2grid = np.linspace(ymin, ymax, Npoints)
+
+XX, YY = np.meshgrid(p1grid, p2grid)
+xy_grid_pts = np.array(list(map(np.ravel, [XX, YY]))).T
+
+sample = np.vstack((meanxi1, meanxi2)).T
+##First median samples KDE
+init_rescale_arr = [1., 1.]
+init_alpha_choice = [0.5]
+current_kde, errorkdeval, errorbBW, erroraALP = get_kde_obj_eval(sample, xy_grid_pts, init_rescale_arr, init_alpha_choice)
+bwx, bwy = errorbBW[0], errorbBW[1]
+# reshape KDE to XX grid shape 
+ZZ = errorkdeval.reshape(XX.shape)
+u_plot.new2DKDE(XX, YY,  ZZ,  meanxi1, meanxi2, saveplot=True,  show_plot=False, pathplot=opts.pathplot, plot_label='KDE', title='median')
 #STEP III: get pdet on same grid as KDE eval and plot contours of pdet
 # try on top of scatter of m1-dL vals
+if opts.fpopchoice == 'rate':
+    pdet2D = np.zeros((Npoints, Npoints))
+    m1_source_grid = p1grid.copy()
+    dL_grid = p2grid.copy()
+    #convert masses im detector frame to make sure we are correctly computing pdet on same masses as KDE grid masses
+    m1_det_grid = get_mass_in_detector_frame(dL_grid, m1_source_grid) 
+    for i, m1val in enumerate(m1_det_grid):
+        for j, dLval in enumerate(dL_grid):
+            pdet2D[i, j] = u_pdet.pdet_of_m1_dL_powerlawm2(m1val, 5.0, dLval, beta=1.26, classcall=g)
 
+capped_pdet2D = np.maximum(pdet2D, opts.Maxpdet)
+u_plot.plot_pdet2D(XX, YY, pdet2D, Maxpdet=opts.Maxpdet, pathplot=opts.pathplot, show_plot=False)
 
+#get rates
+current_rateval = len(meanxi1)*ZZ/capped_pdet2D.T
+u_plot.new2DKDE(XX, YY,  current_rateval, meanxi1, meanxi2 , saveplot=True,plot_label='Rate', title='median', show_plot=False, pathplot=opts.pathplot)
+#save data in hdf5 file
+frateh5 = h5.File(opts.output_filename+'dL2priorfactor_uniform_prior_mass_2Drate_m1'+opts.parameter2+'max_pdet_cap_'+str(opts.Maxpdet)+'.hdf5', 'w')
+dsetxx = frateh5.create_dataset('data_xx', data=XX)
+dsetxx.attrs['xname']='xx'
+dsetyy = frateh5.create_dataset('data_yy', data=YY)
+dsetxx.attrs['yname']='yy'
+med_group = frateh5.create_group(f'median_iteration')
+    # Save the data in the group
+med_group.create_dataset('rwsamples', data=sample)
+med_group.create_dataset('alpha', data=erroraALP)
+med_group.create_dataset('bwx', data=bwx)
+med_group.create_dataset('bwy', data=bwy)
+med_group.create_dataset('kde', data=errorkdeval)
+frateh5.create_dataset('pdet2D', data=pdet2D.T)
+frateh5.create_dataset('pdet2Dwithcap', data=capped_pdet2D.T)
 #STEP IV Iterative reweighting main method: saving data make final plots average of 1000 KDEs/Rates/bwd
+Total_Iterations = int(opts.NIterations)
+discard = int(opts.buffer_start)   # how many iterations to discard default =5
+Nbuffer = int(opts.buffer_interval) #100 buffer [how many (x-numbers of ) previous iteration to use in reweighting with average of those past (x-numbers of ) iteration results
+iterkde_list = []
+iter2Drate_list = []
+iterbwxlist = []
+iterbwylist = []
+iteralplist = []
+for i in range(Total_Iterations + discard):
+    print("i - ", i)
+    if i >= discard + Nbuffer:
+        buffer_kdes_mean = np.mean(iterkde_list[-Nbuffer:], axis=0)
+        buffer_interp = RegularGridInterpolator((p1grid, p2grid), buffer_kdes_mean.T, bounds_error=False, fill_value=0.0)
+    rwsamples = []
+    for samplem1, samplem2, pdet_k in zip(sampleslists1, sampleslists2, pdetlists):
+        samples= np.vstack((samplem1, samplem2)).T
+        if i < discard + Nbuffer :
+            rwsample = get_reweighted_sample(samples, pdet_k, current_kde, bootstrap=opts.bootstrap_option,  max_pdet_cap=opts.Maxpdet)
+        else:
+            rwsample= mean_bufferkdelist_reweighted_samples(samples, pdet_k, buffer_interp, bootstrap_choice=opts.bootstrap_option, max_pdet_cap=opts.Maxpdet)
+        rwsamples.append(rwsample)
+    if opts.bootstrap_option =='poisson':
+        rwsamples = np.concatenate(rwsamples)
+    print("iter", i, "  totalsamples = ", len(rwsamples))
+    current_kde, current_kdeval, shiftedbw, shiftedalp = get_kde_obj_eval(np.array(rwsamples), xy_grid_pts, init_rescale_arr, init_alpha_choice,  input_transf=('log', 'none'))
+    bwx, bwy = shiftedbw[0], shiftedbw[1]
+    print("bwvalues", bwx, bwy)
+    current_kdeval = current_kdeval.reshape(XX.shape)
+    iterkde_list.append(current_kdeval)
+    iterbwxlist.append(bwx)
+    iterbwylist.append(bwy)
+    iteralplist.append(shiftedalp)
+    group = frateh5.create_group(f'iteration_{i}')
+    # Save the data in the group
+    group.create_dataset('rwsamples', data=rwsamples)
+    group.create_dataset('alpha', data=shiftedalp)
+    group.create_dataset('bwx', data=bwx)
+    group.create_dataset('bwy', data=bwy)
+    group.create_dataset('kde', data=current_kdeval)
+    frateh5.flush()
+    if opts.fpopchoice == 'rate':
+        current_kdeval = current_kdeval.reshape(XX.shape)
+        current_rateval = len(rwsamples)*current_kdeval/capped_pdet2D.T
+        iter2Drate_list.append(current_rateval)
+
+    if i > 1 and i%Nbuffer==0:
+        iterstep = int(i)
+        print(iterstep)
+        u_plot.histogram_datalist(iterbwxlist[-Nbuffer:], dataname='bwx', pathplot=opts.pathplot, Iternumber=iterstep)
+        u_plot.histogram_datalist(iterbwylist[-Nbuffer:], dataname='bwy', pathplot=opts.pathplot, Iternumber=iterstep)
+        u_plot.histogram_datalist(iteralplist[-Nbuffer:], dataname='alpha', pathplot=opts.pathplot, Iternumber=iterstep)
+        u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iterkde_list[-Nbuffer:], pathplot=opts.pathplot, titlename=i, plot_label='KDE', x_label='m1', y_label='dL', show_plot= False)
+        if opts.fpopchoice == 'rate':
+             u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iter2Drate_list[-Nbuffer:], pathplot=opts.pathplot, titlename=i, plot_label='Rate', x_label='m1', y_label='dL', show_plot= False)
+frateh5.close()
+u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iterkde_list[discard:], pathplot=opts.pathplot+'allKDEscombined_', titlename=1001, plot_label='KDE', x_label='m1', y_label='dL', show_plot= False)
+u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iter2Drate_list[discard:], pathplot=opts.pathplot+'allKDEscombined_', titlename=1001, plot_label='Rate', x_label='m1', y_label='dL', show_plot= False)
+
+#alpha bw plots
+u_plot.bandwidth_correlation(iterbwxlist, number_corr=discard, error=0.02,  pathplot=opts.pathplot+'bwx_')
+u_plot.bandwidth_correlation(iterbwylist, number_corr=discard, error=0.02,  pathplot=opts.pathplot+'bwy_')
+u_plot.bandwidth_correlation(iteralplist, number_corr=discard,  error=0.02, param='alpha',pathplot=opts.pathplot, log=False)
+########################### One D rate pltos with correct Units of comoving Volume 
+#STEP V: plot rate(m1) with error bars  (90th percentile 5th-95th percentile)
+rate_lnm1dLmed = np.percentile(iter2Drate_list[discard:], 50., axis=0)
+rate_lnm1dL_5 = np.percentile(iter2Drate_list[discard:], 5., axis=0)
+rate_lnm1dL_95 = np.percentile(iter2Drate_list[discard:], 95., axis=0)
 
 
-#STEP V rate(m1) with error bars  (90th percentile 5th-95th percentile)
+
+
+for val in [300, 500, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3500, 4000]:
+    closest_index = np.argmin(np.abs(YY - val))
+    fixed_dL_value = YY.flat[closest_index]
+    print(fixed_dL_value)
+    indices = np.isclose(YY, fixed_dL_value)
+
+    # Extract the slice of rate_lnm1dL for the specified dL
+    rate_lnm1_slice50 = rate_lnm1dLmed[indices]
+    rate_lnm1_slice5 = rate_lnm1dL_5[indices]
+    rate_lnm1_slice95 = rate_lnm1dL_95[indices]
+
+    # Extract the corresponding values of lnm1 from XX
+    m1_values = XX[indices]
+    print(m1_values)
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(m1_values, rate_lnm1_slice50,  linestyle='-', color='k', lw=2)
+    plt.plot(m1_values, rate_lnm1_slice5,  linestyle='--', color='r', lw=1.5)
+    plt.plot(m1_values, rate_lnm1_slice95,  linestyle='--', color='r', lw=1.5)
+    plt.xlabel(r'$m_{1,\, source}$')
+    plt.ylabel(r'$\mathrm{d}\mathcal{R}/m_1\mathrm{d}d_L [\mathrm{Mpc}^{-1}\, (\mathrm{m}/{M}_\odot)^{-1}  \mathrm{yr}^{-1}]$',fontsize=18)
+    plt.title(r'$d_L=${0}[Mpc]'.format(val))
+    plt.semilogx()
+    plt.semilogy()
+    plt.ylim(ymin=1e-6)
+    plt.grid(True)
+    plt.savefig(opts.pathplot+'OneD_rate_m1_slicedL{0:.1f}.png'.format(val))
+    plt.close()
+    print("done")
