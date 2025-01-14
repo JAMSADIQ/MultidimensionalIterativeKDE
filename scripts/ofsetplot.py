@@ -141,17 +141,9 @@ def get_massed_indetector_frame(dLMpc, mass):
 
 colormap = plt.cm.magma#rainbow
 dLarray = np.array([300, 600 ,900, 1200, 1500, 1800, 2100, 2400, 2700, 3000])#, 3000, 3500, 4000, 4500, 5000])
-dLarray1extra = np.array([300, 600 ,900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3500])#, 3000, 3500, 4000, 4500, 5000])
-xlab  = np.random.choice(np.array([20, 25,30, 35, 40, 50]), size=len(dLarray))
 zarray = z_at_value(cosmo.luminosity_distance, dLarray*u.Mpc).value
-zarray1extra = z_at_value(cosmo.luminosity_distance, dLarray1extra*u.Mpc).value
 norm = Normalize(vmin=zarray.min(), vmax=zarray.max())
 y_offset = 0  # Starting offset for ridgelines
-y_gap = 100  # Gap between ridgelines
-dLarray = np.array([300, 600 ,900, 1200, 1500, 1800, 2100, 2400, 2700, 3000])#, 3000, 3500, 4000, 4500, 5000])
-xlab  = np.random.choice(np.array([20, 25,30, 35, 40, 50]), size=len(dLarray))
-zarray = z_at_value(cosmo.luminosity_distance, dLarray*u.Mpc).value
-norm = Normalize(vmin=zarray.min(), vmax=zarray.max()) 
 for ik, dLval in  enumerate(dLarray):#[300, 500, 800, 1200, 1500, 1800, 2100, 2500, 3000, 3500, 4000, 4500, 5000]):
     p3grid = np.array([dLval])
     savehf  =  h5.File('Correctedpdet_KDEsdata_fromOptimizeData_dL{0}.hdf5'.format(dLval), 'r')
@@ -182,22 +174,19 @@ for ik, dLval in  enumerate(dLarray):#[300, 500, 800, 1200, 1500, 1800, 2100, 25
     rate_m15 = np.percentile(rate1Dmedlist, 5.0, axis=0)
     rate_m195 = np.percentile(rate1Dmedlist, 95.0, axis=0)
     rate50 =  rate_m1/volume_factor
-    rate5th=  rate_m15/volume_factor
-    rate95th= rate_m195/volume_factor
-   
-   ##########MASKING IF IT WORK
-    peak = rate50.max()
-    mask = rate50 >= 5e-3 * peak
+    rate05=  rate_m15/volume_factor
+    rate95= rate_m195/volume_factor
+    m1_values = p1grid.copy()
+    ##########MASKING IF IT WORK
+    mask = (rate05 >= 1e-3 * rate50) & (rate95 <= 5e3 * rate50)
+    # Use masked arrays to filter the invalid regions
+    m1_masked = np.ma.masked_where(~mask, m1_values)  # Masked x values
+    p50_masked = np.ma.masked_where(~mask, rate50)
+    p5_masked = np.ma.masked_where(~mask, rate05)
+    p95_masked = np.ma.masked_where(~mask, rate95)
 
-    p50_masked = np.where(mask, rate50, np.nan)  # Replace invalid values with NaN
-    p5_masked = np.where(mask, rate5th, np.nan)  # Replace invalid values with NaN
-    p95_masked = np.where(mask, rate95th, np.nan)
-
-    ax.plot(p1grid, np.log10(p50_masked)+y_offset, color=color,  lw=1.5, label=f'z={zarray[ik]:.1f}')
-    ax.fill_between(p1grid, np.log10(rate5th) + y_offset, np.log10(rate95th) + y_offset, color=color, alpha=0.3)
-    ax.fill_between(p1grid, np.log10(p5_masked) + y_offset, np.log10(p95_masked) + y_offset, color=color, alpha=0.3)
-    label_x = xlab[ik] # Choose a midpoint for the label
-    label_y = np.interp(label_x, p1grid, rate_m1)
+    ax.plot(m1_masked, np.log10(p50_masked)+y_offset, color=color,  lw=1.5, label=f'z={zarray[ik]:.1f}')
+    ax.fill_between(m1_masked, np.log10(p5_masked) + y_offset, np.log10(p95_masked) + y_offset, color=color, alpha=0.3)
     y_offset += 2
 
 
@@ -207,7 +196,7 @@ cbar = plt.colorbar(sm, ax=ax, orientation='vertical', label='$z$')
 ax.set_xlabel(r"$m_1$")
 ax.set_ylim(-5, 17)
 ax.set_ylabel(r'$\mathrm{log}10(\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c) [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$ + offset',fontsize=18)
-ax.set_xlim(7, 80)
+ax.set_xlim(5, 80)
 #ax.set_ylim(ymin=-5)
 plt.tight_layout()
 plt.savefig('offset_rate_m1_redshiftcolor_m1m2dLanalysis_pdetcap_01_Xieffmaxbw_dL_03.png'.format(dLval), bbox_inches='tight')
