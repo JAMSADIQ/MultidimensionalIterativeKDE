@@ -272,7 +272,6 @@ frateh5.close()
 ratelists = iter2Drate_list[100:]
 #apply comoving volume Jacobian factor
 CI50 = np.percentile(ratelists, 50, axis=0)/volume_factor2D
-
 special_plot_rate(meanxi1, meanxi2, XX, YY, pdet2Dnofilter, CI50):
 
 
@@ -308,32 +307,33 @@ for plottitle in ['offset', 'median']:
         # Extract the corresponding values of lnm1 from XX
         m1_values = XX[indices]
     
-        #for each slice separate plot
-        if plottitle =='fixed_dL':
-            #plt.figure(figsize=(8, 6))
-            #plt.plot(m1_values, rate50,  linestyle='-', color='k', lw=2)
-            #plt.plot(m1_values, rate05,  linestyle='--', color='r', lw=1.5)
-            #plt.plot(m1_values, rate95,  linestyle='--', color='r', lw=1.5)
-            #plt.xlabel(r'$m_{1,\, source}$')
-            #plt.ylabel(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$ ',fontsize=18)
-            #plt.title(r'$d_L=${0}[Mpc]'.format(val))
-            #plt.semilogy()
-            #plt.ylim(ymin=1e-6)
-            #plt.grid(True)
-            #plt.tight_layout()
-            #plt.savefig('OneD_rate_m1_slicedL{0:.1f}.png'.format(val))
-            #plt.semilogx()
-            #plt.tight_layout
-            #plt.savefig('OneD_rate_m1_slicedL{0:.1f}LogXaxis_ComovingVolume_Units.png'.format(val))
-            #plt.close()
-            #print("done")
+        ###%%for each slice separate plot
+        #plt.figure(figsize=(8, 6))
+        #plt.plot(m1_values, rate50,  linestyle='-', color='k', lw=2)
+        #plt.plot(m1_values, rate05,  linestyle='--', color='r', lw=1.5)
+        #plt.plot(m1_values, rate95,  linestyle='--', color='r', lw=1.5)
+        #plt.xlabel(r'$m_{1,\, source}$')
+        #plt.ylabel(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$ ',fontsize=18)
+        #plt.title(r'$d_L=${0}[Mpc]'.format(val))
+        #plt.semilogy()
+        #plt.ylim(ymin=1e-6)
+        #plt.grid(True)
+        #plt.tight_layout()
+        #plt.savefig('OneD_rate_m1_slicedL{0:.1f}.png'.format(val))
+        #plt.semilogx()
+        #plt.tight_layout
+        #plt.savefig('OneD_rate_m1_slicedL{0:.1f}LogXaxis_ComovingVolume_Units.png'.format(val))
+        #plt.close()
+        #print("done")
     
-        # Starting offset for ridgelines
-        peak = rate50.max()
-        mask = rate50 >= 5e-3 * peak
-        p50_masked = np.where(mask, rate50, np.nan)  # Replace invalid values with NaN
-        p5_masked = np.where(mask, rate05, np.nan)  # Replace invalid values with NaN
-        p95_masked = np.where(mask, rate95, np.nan)
+        # Masking for huge errors
+        mask = (rate05 >= 1e-3 * rate50) & (rate95 <= 5e3 * rate50)
+        # Use masked arrays to filter the invalid regions
+        m1_masked = np.ma.masked_where(~mask, m1_values)  # Masked x values
+        p50_masked = np.ma.masked_where(~mask, rate50)
+        p5_masked = np.ma.masked_where(~mask, rate05)
+        p95_masked = np.ma.masked_where(~mask, rate95)
+
 
         if  plottitle == 'median':
             ax.plot(m1_values, rate50, color=color,  lw=1.5, label=f'z={zarray[ik]:.1f}')
@@ -341,8 +341,8 @@ for plottitle in ['offset', 'median']:
             ax.set_ylim(ymin=1e-4)
 
         else:
-            ax.plot(m1_values, np.log10(p50_masked)+y_offset, color=color,  lw=1.5, label=f'z={zarray[ik]:.1f}')
-            ax.fill_between(m1_values, np.log10(p5_masked) + y_offset, np.log10(p95_masked) + y_offset, color=color, alpha=0.3)
+            ax.plot(m1_masked, np.log10(p50_masked)+y_offset, color=color,  lw=1.5, label=f'z={zarray[ik]:.1f}')
+            ax.fill_between(m1_masked, np.log10(p5_masked) + y_offset, np.log10(p95_masked) + y_offset, color=color, alpha=0.3)
             ax.set_ylabel(r'$\mathrm{log}10(\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c) [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$ + offset',fontsize=18)
             ax.set_ylim(ymin=-5, ymax=17)
             y_offset += 2
@@ -352,7 +352,7 @@ for plottitle in ['offset', 'median']:
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, orientation='vertical', label='$z$')
     ax.set_xlabel(r'$m_\mathrm{1, source} \,[M_\odot]$', fontsize=20)
-    ax.set_xlim(7, 80)
+    ax.set_xlim(5, 80)
     if  plottitle == 'median':
         plt.semilogy()
     plt.tight_layout()
