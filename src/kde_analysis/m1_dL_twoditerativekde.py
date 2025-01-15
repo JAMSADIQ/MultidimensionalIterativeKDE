@@ -94,7 +94,7 @@ def get_mass_in_detector_frame(dL_Mpc, mass):
     Returns:
         float/array: Corresponding detector frame mass
     """
-    zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc)
+    zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc).value
     mdet = mass*(1.0 + zcosmo)
     return mdet
 
@@ -195,8 +195,9 @@ def prior_factor_function(samples, logkde=False):
     """
     #add a warning here to make sure this is for m1-dL case not m1m2dL
     m1_values, dL_values = samples[:, 0], samples[:, 1]
+    zcosmo = z_at_value(cosmo.luminosity_distance, dL_values * u.Mpc).value
     if logkde:
-        return 1.0 / (dL_values ** 2)
+        return 1.0 / (dL_values ** 2 * (1. + zcosmo)**2)
     return np.ones_like(m1_values)
 
 
