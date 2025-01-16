@@ -80,11 +80,6 @@ H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
 
-def get_massed_indetector_frame(dLMpc, mass):
-    zcosmo = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
-    mdet = mass*(1.0 + zcosmo)
-    return mdet
-
 def get_mass_in_detector_frame(dL_Mpc, mass):
     """
     Compute the redshift corresponding to a luminosity distance.
