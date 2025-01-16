@@ -190,10 +190,12 @@ def prior_factor_function(samples, redshifts):
     Returns:
         np.ndarray: Prior factor for each sample.
     """
-    #add a warning here to make sure this is for m1-dL case not m1m2dL
+
     m1_values, dL_values = samples[:, 0], samples[:, 1]
+    #make this generic 
     dL_prior = (dL_values)**opts.dl_prior_power
     redshift_prior = (1. + redshift)**opts.redshift_prior_power
+
     return 1.0 / (dL_prior * redshift_prior)
 
 
@@ -537,12 +539,12 @@ if opts.param2_min is not None and opts.param2_max is not None:
     ymin, ymax = opts.param2_min, opts.param2_max
 else:
     ymin, ymax = min([a.min() for a in sampleslists]), max([a.max() for a in sampleslists])
-#############we are using fixed dL gri 10-10000Mpc
-ymin, ymax = 10, 8000
+#############we are using fixed dL grid 200-8000Mpc
+ymin, ymax = 200, 8000
 Npoints = opts.Npoints #200 bydefault
 #we need log space points for m1, linear in dL
 p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
-p2grid = np.linspace(ymin, ymax, Npoints)
+p2grid = np.linspace(ymin, ymax, 150)
 
 XX, YY = np.meshgrid(p1grid, p2grid)
 xy_grid_pts = np.array(list(map(np.ravel, [XX, YY]))).T
@@ -559,7 +561,7 @@ u_plot.new2DKDE(XX, YY,  ZZ,  meanxi1, meanxi2, saveplot=True,  show_plot=False,
 #STEP III: get pdet on same grid as KDE eval and plot contours of pdet
 # try on top of scatter of m1-dL vals
 if opts.fpopchoice == 'rate':
-    pdet2D = np.zeros((Npoints, Npoints))
+    pdet2D = np.zeros((len(p1grid), len(p2grid)))
     m1_source_grid = p1grid.copy()
     dL_grid = p2grid.copy()
     #convert masses im detector frame to make sure we are correctly computing pdet on same masses as KDE grid masses
