@@ -47,7 +47,8 @@ parser.add_argument('--min-m2-integration',  type=float, default=5.0, help='mini
 parser.add_argument('--parameter1', default='m1', help='Name of parameter for x-axis of KDE.')
 parser.add_argument('--parameter2', default='m2', help='Name of parameter for y-axis of KDE.')
 parser.add_argument('--parameter3', default='dL', help='Name of parameter for z-axis of KDE.')
-parser.add_argument('--logkde', action='store_true', help='If set, perform KDE in logarithmic space.')
+parser.add_argument('--dl-prior-power', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
+parser.add_argument('--redshift-prior-power ', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
 
 # KDE grid options: limits and resolution
 parser.add_argument('--m1-min', default=5.0, type=float, help='Minimum value for primary mass m1.')
@@ -55,8 +56,8 @@ parser.add_argument('--m1-max', default=100.0, type=float, help='Maximum value f
 parser.add_argument('--Npoints', default=200, type=int, help='Number of points for KDE evaluation.')
 parser.add_argument('--param2-min', default=4.95, type=float, help='Minimum value for parameter 2 if it is  m2, else if dL use 10')
 parser.add_argument('--param2-max', default=100.0, type=float, help='Maximum value for parameter 2 if it is m2 else if dL  use 10000')
-parser.add_argument('--param3-min', default=10., type=float, help='Minimum value for parameter 3 if it is  dL, else if Xieff use -1')
-parser.add_argument('--param3-max', default=10000., type=float, help='Maximum value for parameter 3 if it is dL else if Xieff  use +1')
+parser.add_argument('--param3-min', default=200., type=float, help='Minimum value for parameter 3 if it is  dL, else if Xieff use -1')
+parser.add_argument('--param3-max', default=8000., type=float, help='Maximum value for parameter 3 if it is dL else if Xieff  use +1')
 
 #Expectation Maximization Algorithm Reweighting
 parser.add_argument('--fpopchoice', default='kde', help='choice of fpop to be rate or kde', type=str)
@@ -78,6 +79,7 @@ opts = parser.parse_args()
 H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
+
 def get_massed_indetector_frame(dLMpc, mass):
     zcosmo = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
     mdet = mass*(1.0 + zcosmo)
@@ -181,20 +183,23 @@ def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
 
 
 #this is specific to m1-dL analysis note for 3D we need to fix this
-def prior_factor_function(samples):
+def prior_factor_function(samples, redshifts):
     """
-    Compute a prior factor for reweighting based on uniform priors.
+    Compute a prior factor for reweighting 
+    for dL and masses from redshift to source frame
 
     Args:
         samples (np.ndarray): Array of samples with shape (N, 2), where N is the number of samples.
-        so here we only need d_L prior factor  and redshift to source mass factor
+        redshifts:  given (dL|mass)  one D list or array
+             redshift fatcor for  source mass prior 
     Returns:
         np.ndarray: Prior factor for each sample.
     """
     #add a warning here to make sure this is for m1-dL case not m1m2dL
     m1_values, dL_values = samples[:, 0], samples[:, 1]
-    zcosmo = z_at_value(cosmo.luminosity_distance, dL_values * u.Mpc).value
-    return 1.0 / (dL_values ** 2 * (1. + zcosmo)**2)
+    dL_prior = (dL_values)**opts.dl_prior_power
+    redshift_prior = (1. + redshift)**opts.redshift_prior_power
+    return 1.0 / (dL_prior * redshift_prior)
 
 
 def get_random_sample(original_samples, bootstrap='poisson'):
@@ -221,7 +226,7 @@ def get_random_sample(original_samples, bootstrap='poisson'):
     return random_unweighted_sample
 
 
-def get_reweighted_sample(original_samples, pdetvals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function, max_pdet_cap=0.1):
+def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function, max_pdet_cap=0.1):
     """
     Generate  reweighted sample/samples from the original samples based on their probabilities under a given kernel density estimate (KDE) and optional transformations.
 
@@ -229,6 +234,9 @@ def get_reweighted_sample(original_samples, pdetvals, fpop_kde, bootstrap='poiss
     ----------
     original_samples : list or array-like
         A collection of PE samples of an event
+
+    redshiftvals: list or array-like values
+         for each original sample (mass/dL)
 
     pdet_vals : array-like
         selection effects based on injections
@@ -245,7 +253,7 @@ def get_reweighted_sample(original_samples, pdetvals, fpop_kde, bootstrap='poiss
     prior_factor : callable, optional
         A function to compute a prior adjustment factor for the KDE probabilities.
         This is especially relevant when handling non-uniform priors, such as
-        logarithmic priors.
+        logarithmic priors/ mass-frame/ dL 
 
     max_pdet_cap: capping on pdet to avoid 0/0 or divergences for 
     small values
@@ -264,7 +272,6 @@ def get_reweighted_sample(original_samples, pdetvals, fpop_kde, bootstrap='poiss
     - The function first computes probabilities for the `original_samples` using the
       `fpop_kde.evaluate_with_transf` method and normalizes them by applying
       `apply_max_cap_function` to `pdetvals`.
-    - If `opts.logkde` is set (assumed to be a global variable), the prior factor is
       applied to adjust the KDE probabilities.
     - Sampling is performed using `np.random.choice`, with probabilities normalized
       to sum to 1.
@@ -274,10 +281,7 @@ def get_reweighted_sample(original_samples, pdetvals, fpop_kde, bootstrap='poiss
     fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / apply_max_cap_function(pdetvals, max_pdet_cap)
 
     # Adjust probabilities based on the prior factor, if opts.logkde is set
-    if opts.logkde:
-        frate_atsample = fkde_samples * prior_factor(original_samples)
-    else:
-        frate_atsample = fkde_samples
+    frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals )
 
     # Normalize probabilities to sum to 1
     fpop_at_samples = frate_atsample / frate_atsample.sum()
@@ -294,7 +298,7 @@ def get_reweighted_sample(original_samples, pdetvals, fpop_kde, bootstrap='poiss
     return reweighted_sample
 
 
-def mean_bufferkdelist_reweighted_samples(original_samples, pdetvals, mean_kde_interp, bootstrap_choice='poisson', prior_factor=prior_factor_function, max_pdet_cap=0.1):
+def mean_bufferkdelist_reweighted_samples(original_samples, redshiftvals, pdetvals, mean_kde_interp, bootstrap_choice='poisson', prior_factor=prior_factor_function, max_pdet_cap=0.1):
     """
     Generate reweighted samples using interpolator
     prepared on mean of a KDE buffer list
@@ -314,6 +318,9 @@ def mean_bufferkdelist_reweighted_samples(original_samples, pdetvals, mean_kde_i
     ----------
     original_samples : list or array-like
         A collection of samples representing the mean of each event.
+    
+    redshiftvals: list or array-like values
+         for each original sample (mass/dL)
 
     pdetvals : array-like
         Detection probabilities used for scaling the KDE values. Regularized 
@@ -354,8 +361,7 @@ def mean_bufferkdelist_reweighted_samples(original_samples, pdetvals, mean_kde_i
     """
     #interp = RegularGridInterpolator((m1val, m2val), median_kde_values.T, bounds_error=False, fill_value=0.0)
     kde_interp_vals = mean_kde_interp(original_samples)/apply_max_cap_function(pdetvals, max_pdet_cap)
-    if opts.logkde:
-        kde_interp_vals  *= prior_factor(original_samples)
+    kde_interp_vals  *= prior_factor(original_samples, redshiftvals)
     norm_mediankdevals = kde_interp_vals/sum(kde_interp_vals)
     rng = np.random.default_rng()
     if bootstrap_choice =='poisson':
@@ -473,6 +479,7 @@ medianlist1 = []
 eventlist = []
 sampleslists2 = []
 medianlist2 = []
+redshift_lists = []
 pdetlists = []
 
 for k in d1.keys():
@@ -484,6 +491,7 @@ for k in d1.keys():
         mdet_values = d1[k][...]*(1.0 + dz1[k][...])
         m_values, d_Lvalues, correct_indices =  preprocess_data(injection_m1, injection_dL, m_values, d_Lvalues, num_bins=10)
         mdet_values = mdet_values[correct_indices]
+        redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value 
         pdet_values =  np.zeros(len(d_Lvalues))
         for i in range(len(d_Lvalues)):
             #we should use compute_pdet function here (to be done in future) 
@@ -493,12 +501,14 @@ for k in d1.keys():
         m_values = d1[k][...]
         mdet_values = d1[k][...]*(1.0 + dz1[k][...])
         d_Lvalues = d2[k][...]
+        redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
         pdet_values =  np.zeros(len(d_Lvalues))
         for i in range(len(d_Lvalues)):
             pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], 5.0, d_Lvalues[i], beta=1.26, classcall=g)
     pdetlists.append(pdet_values)
     sampleslists1.append(m_values)
     sampleslists2.append(d_Lvalues)
+    redshift_lists.append(redshift_values)
     medianlist1.append(np.percentile(m_values, 50))
     medianlist2.append(np.percentile(d_Lvalues, 50))
 
@@ -599,12 +609,12 @@ for i in range(Total_Iterations + discard):
         buffer_kdes_mean = np.mean(iterkde_list[-Nbuffer:], axis=0)
         buffer_interp = RegularGridInterpolator((p1grid, p2grid), buffer_kdes_mean.T, bounds_error=False, fill_value=0.0)
     rwsamples = []
-    for samplem1, samplem2, pdet_k in zip(sampleslists1, sampleslists2, pdetlists):
+    for samplem1, samplem2, redshiftvals, pdet_k in zip(sampleslists1, sampleslists2, redshift_lists, pdetlists):
         samples= np.vstack((samplem1, samplem2)).T
         if i < discard + Nbuffer :
-            rwsample = get_reweighted_sample(samples, pdet_k, current_kde, bootstrap=opts.bootstrap_option,  max_pdet_cap=opts.Maxpdet)
+            rwsample = get_reweighted_sample(samples, redshiftvals, pdet_k, current_kde, bootstrap=opts.bootstrap_option,  max_pdet_cap=opts.Maxpdet)
         else:
-            rwsample= mean_bufferkdelist_reweighted_samples(samples, pdet_k, buffer_interp, bootstrap_choice=opts.bootstrap_option, max_pdet_cap=opts.Maxpdet)
+            rwsample= mean_bufferkdelist_reweighted_samples(samples, redshiftvals, pdet_k, buffer_interp, bootstrap_choice=opts.bootstrap_option, max_pdet_cap=opts.Maxpdet)
         rwsamples.append(rwsample)
     if opts.bootstrap_option =='poisson':
         rwsamples = np.concatenate(rwsamples)
