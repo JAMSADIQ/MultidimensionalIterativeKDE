@@ -181,24 +181,20 @@ def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
 
 
 #this is specific to m1-dL analysis note for 3D we need to fix this
-def prior_factor_function(samples, logkde=False):
+def prior_factor_function(samples):
     """
     Compute a prior factor for reweighting based on uniform priors.
 
     Args:
         samples (np.ndarray): Array of samples with shape (N, 2), where N is the number of samples.
-        logkde (bool): If True, the parameters are logarithmic.
-        Note in new code prior conversion is done inside code
-        so here we only need d_L prior factor
+        so here we only need d_L prior factor  and redshift to source mass factor
     Returns:
         np.ndarray: Prior factor for each sample.
     """
     #add a warning here to make sure this is for m1-dL case not m1m2dL
     m1_values, dL_values = samples[:, 0], samples[:, 1]
     zcosmo = z_at_value(cosmo.luminosity_distance, dL_values * u.Mpc).value
-    if logkde:
-        return 1.0 / (dL_values ** 2 * (1. + zcosmo)**2)
-    return np.ones_like(m1_values)
+    return 1.0 / (dL_values ** 2 * (1. + zcosmo)**2)
 
 
 def get_random_sample(original_samples, bootstrap='poisson'):
