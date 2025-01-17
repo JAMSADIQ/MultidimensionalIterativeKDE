@@ -1,4 +1,5 @@
 import sys
+import matplotlib
 sys.path.append('pop-de/popde/')
 import density_estimate as d
 import adaptive_kde as ad
@@ -11,7 +12,6 @@ from matplotlib.colors import LogNorm, Normalize
 from matplotlib import rcParams
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
-import pickle
 import utils_plot as u_plot
 import o123_class_found_inj_general as u_pdet
 
@@ -42,7 +42,8 @@ parser.add_argument('--injectionfile',  help='H5 file from GWTC3 public data for
 # for pdet calculation
 parser.add_argument('--power-index-m2',  type=float, default=1.26, help='beta or power index for m2 distribution in pdet calculation')
 parser.add_argument('--min-m2-integration',  type=float, default=5.0, help='minimum intgeration limit for m2. It can be problematic if min is smaller than smallest m1 value.')
-
+# selection effect capping
+parser.add_argument('--max-pdet', default=0.1, type=float, help='Capping value for small pdet to introduce regularization.')
 # Parameters
 parser.add_argument('--parameter1', default='m1', help='Name of parameter for x-axis of KDE.')
 parser.add_argument('--parameter2', default='m2', help='Name of parameter for y-axis of KDE.')
@@ -68,8 +69,6 @@ parser.add_argument('--bootstrap-option', default='poisson', type=str, help=('Bo
 parser.add_argument('--buffer-start', default=100, type=int, help='The starting iteration for buffering in the reweighting process.')
 parser.add_argument('--buffer-interval', default=100, type=int, help=('The interval of the buffer determines how many previous iteration results are used in the next iteration for reweighting.'))
 parser.add_argument('--NIterations', default=1000, type=int, help='Total number of iterations for the reweighting process.')
-# selection effect capping
-parser.add_argument('--max-pdet', default=0.1, type=float, help='Capping value for small pdet to introduce regularization.')
 # Rescaling factor bounds [bandwidth]
 parser.add_argument('--min-bw-dLdim', default=0.01, type=float, help='Set the minimum bandwidth for the DL dimension. The value must be >= 0.3 for mmain analysis')
 # Output and plotting
@@ -703,9 +702,85 @@ rate_lnm1dL_5 = np.percentile(iter2Drate_list[discard:], 5., axis=0)
 rate_lnm1dL_95 = np.percentile(iter2Drate_list[discard:], 95., axis=0)
 
 
+dLarray = np.array([300, 600 ,900, 1200, 1500, 1800, 2100, 2400, 2700, 3000])
+colormap = plt.cm.magma
+zarray = z_at_value(cosmo.luminosity_distance, dLarray*u.Mpc).value
+y_offset = 0
+for plottitle in ['offset', 'median']:
+    fig, ax = plt.subplots(figsize=(10, 8))
+    for ik, val in enumerate(dLarray):
+        color = colormap(norm(zarray[ik]))
+        closest_index = np.argmin(np.abs(YY - val))
+        fixed_dL_value = YY.flat[closest_index]
+        volume_factor = get_dVdz_factor(fixed_dL_value)
+        indices = np.isclose(YY, fixed_dL_value)
+        # Extract the slice of rate_lnm1dL for the specified dL
+        rate_lnm1_slice50 = rate_lnm1dLmed[indices]
+        rate_lnm1_slice5 = rate_lnm1dL_5[indices]
+        rate_lnm1_slice95 = rate_lnm1dL_95[indices]
+        #correcting units
+        rate50 =  rate_lnm1_slice50/volume_factor
+        rate05 =  rate_lnm1_slice5/volume_factor
+        rate95 =  rate_lnm1_slice95/volume_factor
+        # Extract the corresponding values of lnm1 from XX
+        m1_values = XX[indices]
+
+        ###%%for each slice separate plot
+        #plt.figure(figsize=(8, 6))
+        #plt.plot(m1_values, rate50,  linestyle='-', color='k', lw=2)
+        #plt.plot(m1_values, rate05,  linestyle='--', color='r', lw=1.5)
+        #plt.plot(m1_values, rate95,  linestyle='--', color='r', lw=1.5)
+        #plt.xlabel(r'$m_{1,\, source}$')
+        #plt.ylabel(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$ ',fontsize=18)
+        #plt.title(r'$d_L=${0}[Mpc]'.format(val))
+        #plt.semilogy()
+        #plt.ylim(ymin=1e-6)
+        #plt.grid(True)
+        #plt.tight_layout()
+        #plt.savefig('OneD_rate_m1_slicedL{0:.1f}.png'.format(val))
+        #plt.semilogx()
+        #plt.tight_layout
+        #plt.savefig('OneD_rate_m1_slicedL{0:.1f}LogXaxis_ComovingVolume_Units.png'.format(val))
+        #plt.close()
+        #print("done")
+
+        # Masking for huge errors
+        mask = (rate05 >= 1e-3 * rate50) & (rate95 <= 5e3 * rate50)
+        # Use masked arrays to filter the invalid regions
+        m1_masked = np.ma.masked_where(~mask, m1_values)  # Masked x values
+        p50_masked = np.ma.masked_where(~mask, rate50)
+        p5_masked = np.ma.masked_where(~mask, rate05)
+        p95_masked = np.ma.masked_where(~mask, rate95)
 
 
-for val in [300, 500, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3500, 4000]:
+        if  plottitle == 'median':
+            ax.plot(m1_values, rate50, color=color,  lw=1.5, label=f'z={zarray[ik]:.1f}')
+            ax.set_ylabel(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$ ',fontsize=20)
+            ax.set_ylim(ymin=1e-4)
+
+        else:
+            ax.plot(m1_masked, np.log10(p50_masked)+y_offset, color=color,  lw=1.5, label=f'z={zarray[ik]:.1f}')
+            ax.fill_between(m1_masked, np.log10(p5_masked) + y_offset, np.log10(p95_masked) + y_offset, color=color, alpha=0.3)
+            ax.set_ylabel(r'$\mathrm{log}10(\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c) [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$ + offset',fontsize=18)
+            ax.set_ylim(ymin=-5, ymax=17)
+            y_offset += 2
+
+    from matplotlib import cm
+    sm = cm.ScalarMappable(cmap=colormap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', label='$z$')
+    ax.set_xlabel(r'$m_\mathrm{1, source} \,[M_\odot]$', fontsize=20)
+    ax.set_xlim(5, 80)
+    if  plottitle == 'median':
+        plt.semilogy()
+    plt.tight_layout()
+    plt.savefig(opts.pathplot+plottitle+'_rate_m1_at_slice_dLplot_with_redshift_colors.png')
+    plt.semilogx()
+    plt.tight_layout()
+    plt.savefig(opts.pathplot+plottitle+'_rate_m1_at_slice_dLplot_with_redshift_colors_log_Xaxis.png')
+    plt.close()
+        
+for val in [300, 500, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3500, 4000:
     closest_index = np.argmin(np.abs(YY - val))
     fixed_dL_value = YY.flat[closest_index]
     print(fixed_dL_value)
