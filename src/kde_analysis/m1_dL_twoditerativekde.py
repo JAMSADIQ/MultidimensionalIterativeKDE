@@ -599,13 +599,11 @@ u_plot.new2DKDE(XX, YY,  ZZ,  meanxi1, meanxi2, saveplot=True,  show_plot=False,
 # try on top of scatter of m1-dL vals
 if opts.fpopchoice == 'rate':
     pdet2D = np.zeros((len(p1grid), len(p2grid)))
-    m1_source_grid = p1grid.copy()
-    dL_grid = p2grid.copy()
     #convert masses im detector frame to make sure we are correctly computing pdet on same masses as KDE grid masses
-    m1_det_grid = get_mass_in_detector_frame(dL_grid, m1_source_grid) 
-    for i, m1val in enumerate(m1_det_grid):
-        for j, dLval in enumerate(dL_grid):
-            pdet2D[i, j] = u_pdet.pdet_of_m1_dL_powerlawm2(m1val, m2min, dLval, beta=index_powerlaw_m2, classcall=g)
+    for i, m1src in enumerate(p1grid):
+        for j, dLval in enumerate(p2grid):
+            m1det = get_mass_in_detector_frame(dLval, m1src)
+            pdet2D[i, j] = u_pdet.pdet_of_m1_dL_powerlawm2(m1det, m2min, dLval, beta=index_powerlaw_m2, classcall=g)
 
 capped_pdet2D = np.maximum(pdet2D, opts.max_pdet)
 u_plot.plot_pdet2D(XX, YY, pdet2D, Maxpdet=opts.max_pdet, pathplot=opts.pathplot, show_plot=False)
