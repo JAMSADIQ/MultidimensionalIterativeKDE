@@ -80,7 +80,9 @@ opts = parser.parse_args()
 #### min bw choice for dL
 min_bw_dL = opts.min_bw_dLdim
 print("min bw for dL = ", min_bw_dL
-
+index_powerlaw_m2 = opts.power_index_m2
+m2min = opts.min_m2_integration
+print("powerlaw on m2 has index,  min m2 =",  index_powerlaw_m2, m2min)
 # Define cosmology
 H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
@@ -528,10 +530,9 @@ for k in d1.keys():
         mdet_values = mdet_values[correct_indices]
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value 
         pdet_values =  np.zeros(len(d_Lvalues))
+        #print("minm2, beta are", index_powerlaw_m2, minm2,  "used in pdet")
         for i in range(len(d_Lvalues)):
-            #we should use compute_pdet function here (to be done in future) 
-            #we need to using opts for 5 as min m2 in integration and beta is also chosen from opts 
-            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], 5.0, d_Lvalues[i], beta=1.26, classcall=g)
+            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], minm2, d_Lvalues[i], beta=index_powerlaw_m2, classcall=g)
     else:
         m_values = d1[k][...]
         mdet_values = d1[k][...]*(1.0 + dz1[k][...])
@@ -539,7 +540,7 @@ for k in d1.keys():
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
         pdet_values =  np.zeros(len(d_Lvalues))
         for i in range(len(d_Lvalues)):
-            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], 5.0, d_Lvalues[i], beta=1.26, classcall=g)
+            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], minm2, d_Lvalues[i], beta=index_powerlaw_m2, classcall=g)
     pdetlists.append(pdet_values)
     sampleslists1.append(m_values)
     sampleslists2.append(d_Lvalues)
@@ -570,9 +571,8 @@ if opts.m1_min is not None and opts.m1_max is not None:
     xmin, xmax = opts.m1_min, opts.m1_max
 else:
     xmin, xmax = min([a.min() for a in sampleslists]), max([a.max() for a in sampleslists])
-#### we are using fix in this analysis 
+#### we can fix in this analysis 
 xmin, xmax = 5, 105
-
 if opts.param2_min is not None and opts.param2_max is not None:
     ymin, ymax = opts.param2_min, opts.param2_max
 else:
@@ -582,7 +582,7 @@ ymin, ymax = 200, 8000
 Npoints = opts.Npoints #200 bydefault
 #we need log space points for m1, linear in dL
 p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
-p2grid = np.linspace(ymin, ymax, 150)
+p2grid = np.linspace(ymin, ymax, 150) #here we are using 150 points
 
 XX, YY = np.meshgrid(p1grid, p2grid)
 xy_grid_pts = np.array(list(map(np.ravel, [XX, YY]))).T
@@ -606,7 +606,7 @@ if opts.fpopchoice == 'rate':
     m1_det_grid = get_mass_in_detector_frame(dL_grid, m1_source_grid) 
     for i, m1val in enumerate(m1_det_grid):
         for j, dLval in enumerate(dL_grid):
-            pdet2D[i, j] = u_pdet.pdet_of_m1_dL_powerlawm2(m1val, 5.0, dLval, beta=1.26, classcall=g)
+            pdet2D[i, j] = u_pdet.pdet_of_m1_dL_powerlawm2(m1val, m2min, dLval, beta=index_powerlaw_m2, classcall=g)
 
 capped_pdet2D = np.maximum(pdet2D, opts.max_pdet)
 u_plot.plot_pdet2D(XX, YY, pdet2D, Maxpdet=opts.max_pdet, pathplot=opts.pathplot, show_plot=False)
