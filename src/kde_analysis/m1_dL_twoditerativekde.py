@@ -39,7 +39,7 @@ parser.add_argument('--datafilename2', required=True, help='H5 file containing N
 parser.add_argument('--datafilename3', required=True, help='H5 file containing N samples of parameter3.')
 # for removing bad samples based on sensitivity search injection study by LVK
 parser.add_argument('--injectionfile',  help='H5 file from GWTC3 public data for search sensitivity.', default='endo3_bbhpop-LIGO-T2100113-v12.hdf5')
-#for pdet calculation
+# for pdet calculation
 parser.add_argument('--power-index-m2',  type=float, default=1.26, help='beta or power index for m2 distribution in pdet calculation')
 parser.add_argument('--min-m2-integration',  type=float, default=5.0, help='minimum intgeration limit for m2. It can be problematic if min is smaller than smallest m1 value.')
 
@@ -47,9 +47,9 @@ parser.add_argument('--min-m2-integration',  type=float, default=5.0, help='mini
 parser.add_argument('--parameter1', default='m1', help='Name of parameter for x-axis of KDE.')
 parser.add_argument('--parameter2', default='m2', help='Name of parameter for y-axis of KDE.')
 parser.add_argument('--parameter3', default='dL', help='Name of parameter for z-axis of KDE.')
+# Priors for reweighting 
 parser.add_argument('--dl-prior-power', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
 parser.add_argument('--redshift-prior-power ', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
-
 # KDE grid options: limits and resolution
 parser.add_argument('--m1-min', default=5.0, type=float, help='Minimum value for primary mass m1.')
 parser.add_argument('--m1-max', default=100.0, type=float, help='Maximum value for primary mass m1.')
@@ -59,7 +59,7 @@ parser.add_argument('--param2-max', default=100.0, type=float, help='Maximum val
 parser.add_argument('--param3-min', default=200., type=float, help='Minimum value for parameter 3 if it is  dL, else if Xieff use -1')
 parser.add_argument('--param3-max', default=8000., type=float, help='Maximum value for parameter 3 if it is dL else if Xieff  use +1')
 
-#Expectation Maximization Algorithm Reweighting
+# Expectation Maximization Algorithm Reweighting
 parser.add_argument('--fpopchoice', default='kde', help='choice of fpop to be rate or kde', type=str)
 parser.add_argument('--reweight-method', default='bufferkdevals', type=str, help=('Reweighting method for Gaussian sample shift: ''"bufferkdevals" uses buffered KDE values, and "bufferkdeobject" uses buffered KDE objects.'))
 parser.add_argument('--reweight-sample-option', default='reweight', type=str, help=('Option to reweight samples: choose "noreweight" to skip reweighting or "reweight" ''to use fpop probabilities for reweighting. If "reweight", one sample is used ''for no bootstrap, and multiple samples are used for Poisson.'))
@@ -68,12 +68,18 @@ parser.add_argument('--bootstrap-option', default='poisson', type=str, help=('Bo
 parser.add_argument('--buffer-start', default=100, type=int, help='The starting iteration for buffering in the reweighting process.')
 parser.add_argument('--buffer-interval', default=100, type=int, help=('The interval of the buffer determines how many previous iteration results are used in the next iteration for reweighting.'))
 parser.add_argument('--NIterations', default=1000, type=int, help='Total number of iterations for the reweighting process.')
-parser.add_argument('--Maxpdet', default=0.1, type=float, help='Capping value for small pdet to introduce regularization.')
+# selection effect capping
+parser.add_argument('--max-pdet', default=0.1, type=float, help='Capping value for small pdet to introduce regularization.')
+# Rescaling factor bounds [bandwidth]
+parser.add_argument('--min-bw-dLdim', default=0.01, type=float, help='Set the minimum bandwidth for the DL dimension. The value must be >= 0.3 for mmain analysis')
 # Output and plotting
 parser.add_argument('--pathplot', default='./', help='Path to save plots.')
 parser.add_argument('--output-filename', default='output_data', help='Base name for output HDF5 files.')
 opts = parser.parse_args()
 
+#### min bw choice for dL
+min_bw_dL = opts.min_bw_dLdim
+print("min bw for dL = ", min_bw_dL
 
 # Define cosmology
 H0 = 67.9  # km/s/Mpc
@@ -178,25 +184,38 @@ def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
 
 
 #this is specific to m1-dL analysis note for 3D we need to fix this
-def prior_factor_function(samples, redshifts):
+def prior_factor_function(samples, redshift_vals, dl_prior_power=2.0, redshift_prior_power=2.0):
     """
-    Compute a prior factor for reweighting 
-    for dL and masses from redshift to source frame
+    Compute a prior factor for reweighting for dL and masses from redshift to the source frame.
+    For non-cosmo pe files:
+    - Use dL^power (distance factor).
+    - If the source-frame mass is used, apply (1+z)^power for redshift scaling.
 
     Args:
         samples (np.ndarray): Array of samples with shape (N, 2), where N is the number of samples.
-        redshifts:  given (dL|mass)  one D list or array
-             redshift fatcor for  source mass prior 
+        redshift_vals:  (np.ndarray or list): Redshift values corresponding to the samples.
+        dl_prior_power (float, optional): Power to apply to the dL prior. Default is 2.0.
+        redshift_prior_power (float, optional): Power to apply to the redshift prior. Default is 2.0
     Returns:
-        np.ndarray: Prior factor for each sample.
+        np.ndarray: Prior factor for each sample, computed as 1 / (dL^power * (1+z)^power).
     """
-
+    if samples.shape[1] != 2:
+        raise ValueError("Samples array must have exactly two columns: [m1, dL].")
+    
+    if len(redshifts) != len(samples):
+        raise ValueError("Length of redshifts must match the number of samples.")
+        
+    # Extract values from samples
     m1_values, dL_values = samples[:, 0], samples[:, 1]
-    #make this generic 
-    dL_prior = (dL_values)**opts.dl_prior_power
-    redshift_prior = (1. + redshift)**opts.redshift_prior_power
 
-    return 1.0 / (dL_prior * redshift_prior)
+    #compute prior
+    dL_prior = (dL_values)**dl_prior_power
+    redshift_prior = (1. + redshift_vals)**redshift_prior_power
+
+    # Compute and return the prior factor
+    prior_factors = 1.0 / (dL_prior * redshift_prior)    
+    
+    return prior_factors
 
 
 def get_random_sample(original_samples, bootstrap='poisson'):
@@ -223,7 +242,7 @@ def get_random_sample(original_samples, bootstrap='poisson'):
     return random_unweighted_sample
 
 
-def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function, max_pdet_cap=0.1):
+def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None, , max_pdet_cap=0.1):
     """
     Generate  reweighted sample/samples from the original samples based on their probabilities under a given kernel density estimate (KDE) and optional transformations.
 
@@ -252,6 +271,8 @@ def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bo
         This is especially relevant when handling non-uniform priors, such as
         logarithmic priors/ mass-frame/ dL 
 
+    prior_factor_kwargs (dict, optional): Keyword arguments for the `prior_factor_function`. Default is None.
+
     max_pdet_cap: capping on pdet to avoid 0/0 or divergences for 
     small values
 
@@ -274,11 +295,14 @@ def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bo
       to sum to 1.
 
     """
+    # Ensure prior_factor_kwargs is a dictionary
+    if prior_factor_kwargs is None:
+        prior_factor_kwargs = {}
     # Compute KDE probabilities divide by regularized pdetvals
     fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / apply_max_cap_function(pdetvals, max_pdet_cap)
 
-    # Adjust probabilities based on the prior factor, if opts.logkde is set
-    frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals )
+    # Adjust probabilities based on the prior factor
+    frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals , **prior_factor_kwargs)
 
     # Normalize probabilities to sum to 1
     fpop_at_samples = frate_atsample / frate_atsample.sum()
@@ -295,7 +319,7 @@ def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bo
     return reweighted_sample
 
 
-def mean_bufferkdelist_reweighted_samples(original_samples, redshiftvals, pdetvals, mean_kde_interp, bootstrap_choice='poisson', prior_factor=prior_factor_function, max_pdet_cap=0.1):
+def mean_bufferkdelist_reweighted_samples(original_samples, redshiftvals, pdetvals, mean_kde_interp, bootstrap_choice='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None, max_pdet_cap=0.1):
     """
     Generate reweighted samples using interpolator
     prepared on mean of a KDE buffer list
@@ -337,6 +361,8 @@ def mean_bufferkdelist_reweighted_samples(original_samples, redshiftvals, pdetva
         A function to compute a prior adjustment factor for the KDE probabilities. 
         This is particularly relevant when handling non-uniform priors.
 
+    prior_factor_kwargs (dict, optional): Keyword arguments for the `prior_factor_function`. Default is None.
+
     max_pdet_cap : float, optional
         A regularization cap for detection probabilities (`pdetvals`). Values 
         above this cap are clipped to avoid numerical instability. Default is 0.1.
@@ -357,9 +383,16 @@ def mean_bufferkdelist_reweighted_samples(original_samples, redshiftvals, pdetva
     #interp = RegularGridInterpolator((p1val, p2val), mean_kde_values.T, bounds_error=False, fill_value=0.0)
     """
     #interp = RegularGridInterpolator((m1val, m2val), median_kde_values.T, bounds_error=False, fill_value=0.0)
+    
+    # Ensure prior_factor_kwargs is a dictionary
+    if prior_factor_kwargs is None:
+        prior_factor_kwargs = {}
+
     kde_interp_vals = mean_kde_interp(original_samples)/apply_max_cap_function(pdetvals, max_pdet_cap)
-    kde_interp_vals  *= prior_factor(original_samples, redshiftvals)
+
+    kde_interp_vals  *= prior_factor(original_samples, redshiftvals, **prior_factor_kwargs)
     norm_mediankdevals = kde_interp_vals/sum(kde_interp_vals)
+
     rng = np.random.default_rng()
     if bootstrap_choice =='poisson':
         reweighted_sample = rng.choice(original_samples, np.random.poisson(1), p=norm_mediankdevals)
@@ -368,7 +401,8 @@ def mean_bufferkdelist_reweighted_samples(original_samples, redshiftvals, pdetva
     return reweighted_sample
 
 # we should make bounds inside arguments to keep bwz max limit
-def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('log', 'none')):
+#we shouls add input transf in parser to make it generic too
+def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('log', 'none'), min_bw_dL=0.01):
     """
     Create a KDE object with rescaling optimization, optimize its parameters, 
     and evaluate it at given points.
@@ -400,6 +434,8 @@ def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('
         Transformation applied to the input data before KDE computation. The default 
         is `('log', 'none')`, which applies a logarithmic transformation to the first 
         dimension and no transformation to the second.
+    min_bw_dL: to adjust lower bound on bw choice of dL default in 0.01
+    this need to be include in bounds
 
     Returns:
     -------
@@ -417,8 +453,10 @@ def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('
         Optimized alpha parameter from the KDE optimization process.
 
     """
+    dLmax_rescale_bound = 1.0/min_bw_dL
     kde_object = ad.KDERescaleOptimization(sample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'dL'], input_transf=input_transf)
-    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0,1)), disp=True)#, xatol=0.01, fatol=0.1)
+    #dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0,1)), disp=True)#, xatol=0.01, fatol=0.1)
+    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, dLmax_rescale_bound),(0,1)), disp=True)
     kde_vals = kde_object.evaluate_with_transf(eval_pts)
     optbwds = [1.0/dictopt[0], 1.0/dictopt[1]]
     optalpha = dictopt[-1]
@@ -553,7 +591,7 @@ sample = np.vstack((meanxi1, meanxi2)).T
 ##First median samples KDE
 init_rescale_arr = [1., 1.]
 init_alpha_choice = [0.5]
-current_kde, errorkdeval, errorbBW, erroraALP = get_kde_obj_eval(sample, xy_grid_pts, init_rescale_arr, init_alpha_choice)
+current_kde, errorkdeval, errorbBW, erroraALP = get_kde_obj_eval(sample, xy_grid_pts, init_rescale_arr, init_alpha_choice,  min_bw_dL=min_bw_dL)
 bwx, bwy = errorbBW[0], errorbBW[1]
 # reshape KDE to XX grid shape 
 ZZ = errorkdeval.reshape(XX.shape)
@@ -570,14 +608,14 @@ if opts.fpopchoice == 'rate':
         for j, dLval in enumerate(dL_grid):
             pdet2D[i, j] = u_pdet.pdet_of_m1_dL_powerlawm2(m1val, 5.0, dLval, beta=1.26, classcall=g)
 
-capped_pdet2D = np.maximum(pdet2D, opts.Maxpdet)
-u_plot.plot_pdet2D(XX, YY, pdet2D, Maxpdet=opts.Maxpdet, pathplot=opts.pathplot, show_plot=False)
+capped_pdet2D = np.maximum(pdet2D, opts.max_pdet)
+u_plot.plot_pdet2D(XX, YY, pdet2D, Maxpdet=opts.max_pdet, pathplot=opts.pathplot, show_plot=False)
 
 #get rates
 current_rateval = len(meanxi1)*ZZ/capped_pdet2D.T
 u_plot.new2DKDE(XX, YY,  current_rateval, meanxi1, meanxi2 , saveplot=True,plot_label='Rate', title='median', show_plot=False, pathplot=opts.pathplot)
 #save data in hdf5 file
-frateh5 = h5.File(opts.output_filename+'dL2priorfactor_uniform_prior_mass_2Drate_m1'+opts.parameter2+'max_pdet_cap_'+str(opts.Maxpdet)+'.hdf5', 'w')
+frateh5 = h5.File(opts.output_filename+'dL2priorfactor_uniform_prior_mass_2Drate_m1'+opts.parameter2+'max_pdet_cap_'+str(opts.max_pdet)+'min_bw_dL'+str(opts.min_bw_dLdim)+'.hdf5', 'w')
 dsetxx = frateh5.create_dataset('data_xx', data=XX)
 dsetxx.attrs['xname']='xx'
 dsetyy = frateh5.create_dataset('data_yy', data=YY)
@@ -600,6 +638,10 @@ iter2Drate_list = []
 iterbwxlist = []
 iterbwylist = []
 iteralplist = []
+
+#set the prior factors correctly here before reweighting
+prior_kwargs = {'dl_prior_power': opts.dl_prior_power, 'redshift_prior_power': opts.redshift_prior_power}
+
 for i in range(Total_Iterations + discard):
     print("i - ", i)
     if i >= discard + Nbuffer:
@@ -609,14 +651,14 @@ for i in range(Total_Iterations + discard):
     for samplem1, samplem2, redshiftvals, pdet_k in zip(sampleslists1, sampleslists2, redshift_lists, pdetlists):
         samples= np.vstack((samplem1, samplem2)).T
         if i < discard + Nbuffer :
-            rwsample = get_reweighted_sample(samples, redshiftvals, pdet_k, current_kde, bootstrap=opts.bootstrap_option,  max_pdet_cap=opts.Maxpdet)
+            rwsample = get_reweighted_sample(samples, redshiftvals, pdet_k, current_kde, bootstrap=opts.bootstrap_option, prior_factor_kwargs=prior_kwargs, max_pdet_cap=opts.max_pdet)
         else:
-            rwsample= mean_bufferkdelist_reweighted_samples(samples, redshiftvals, pdet_k, buffer_interp, bootstrap_choice=opts.bootstrap_option, max_pdet_cap=opts.Maxpdet)
+            rwsample= mean_bufferkdelist_reweighted_samples(samples, redshiftvals, pdet_k, buffer_interp, bootstrap_choice=opts.bootstrap_option, prior_factor_kwargs=prior_kwargs, max_pdet_cap=opts.max_pdet)
         rwsamples.append(rwsample)
     if opts.bootstrap_option =='poisson':
         rwsamples = np.concatenate(rwsamples)
     print("iter", i, "  totalsamples = ", len(rwsamples))
-    current_kde, current_kdeval, shiftedbw, shiftedalp = get_kde_obj_eval(np.array(rwsamples), xy_grid_pts, init_rescale_arr, init_alpha_choice,  input_transf=('log', 'none'))
+    current_kde, current_kdeval, shiftedbw, shiftedalp = get_kde_obj_eval(np.array(rwsamples), xy_grid_pts, init_rescale_arr, init_alpha_choice,  input_transf=('log', 'none'),  min_bw_dL=min_bw_dL)
     bwx, bwy = shiftedbw[0], shiftedbw[1]
     print("bwvalues", bwx, bwy)
     current_kdeval = current_kdeval.reshape(XX.shape)
