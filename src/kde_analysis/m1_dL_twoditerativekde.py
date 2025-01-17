@@ -203,7 +203,7 @@ def prior_factor_function(samples, redshift_vals, dl_prior_power=2.0, redshift_p
     if samples.shape[1] != 2:
         raise ValueError("Samples array must have exactly two columns: [m1, dL].")
     
-    if len(redshifts) != len(samples):
+    if len(redshift_vals) != len(samples):
         raise ValueError("Length of redshifts must match the number of samples.")
         
     # Extract values from samples
