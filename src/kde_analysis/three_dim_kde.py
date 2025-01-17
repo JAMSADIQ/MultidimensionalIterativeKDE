@@ -9,6 +9,8 @@ import argparse
 import json
 import h5py as h5
 import scipy
+import numpy as np
+from scipy.integrate import quad
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib import rcParams
 from matplotlib.colors import LogNorm, Normalize
@@ -90,7 +92,7 @@ H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
 
-def get_massed_indetector_frame(dLMpc, mass):
+def get_mass_indetector_frame(dLMpc, mass):
     """
     Convert the mass of an object to its equivalent in the detector frame,
     accounting for cosmological redshift.
@@ -622,19 +624,83 @@ else:
 xmin, xmax = 5, 105  #m1
 ymin, ymax = 5, 105 #m2
 zmin, zmax = 200, 8000 #dL
-Npoints = 150 #opts.Npoints
+Npoints = 200 #opts.Npoints
 #######################################################
 ################ We will be using masses in log scale so better to use
 ##### If we want to use log param we need proper grid spacing in log scale
 p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
 p2grid = np.logspace(np.log10(ymin), np.log10(ymax), Npoints)
-p3grid = np.linspace(zmin, zmax, Npoints) 
-XX, YY, ZZ = np.meshgrid(p1grid, p2grid, p3grid,  indexing='ij')
-#input_transf['log', 'log', None] will automatically do it
-xy_grid_pts = np.column_stack([XX.ravel(), YY.ravel(), ZZ.ravel()])
+p3grid = np.linspace(zmin, zmax, 150) 
+######################
+#converting units
+def hubble_parameter(z, H0, Omega_m):
+    """
+    Calculate the Hubble parameter H(z) for a flat Lambda-CDM cosmology.
+    """
+    Omega_Lambda = 1.0 - Omega_m
+    return H0 * np.sqrt(Omega_m * (1 + z)**3 + Omega_Lambda)
 
-def compute_median_kde(hdf_file, start_iter, end_iter, eval_samples, XX, YY, dLgrid):
+
+def comoving_distance(z, H0, Omega_m):
+    """
+    Compute the comoving distance D_c(z) in Mpc.
+    """
+    integrand = lambda z_prime: c / hubble_parameter(z_prime, H0, Omega_m)
+    D_c, _ = quad(integrand, 0, z)
+    return D_c
+
+
+def comoving_distance_derivative(z, H0, Omega_m):
+    """
+    Compute the derivative of comoving distance dD_c/dz in Mpc.
+    """
+    return c / hubble_parameter(z, H0, Omega_m)
+
+
+def get_ddL_bydz_factor(dL_Mpc):
+    z_at_dL = z_at_value(cosmo.luminosity_distance, dL_Mpc*u.Mpc).value
+    D_c = comoving_distance(z_at_dL, H0, omega_m)
+    dD_c_dz = comoving_distance_derivative(z_at_dL, H0, omega_m)
+    ddL_dz = D_c + (1 + z_at_dL) * dD_c_dz
+    return  z_at_dL, ddL_dz
+
+
+def get_dVdz_factor(dL_Mpc):
+    z_at_dL, ddL_dz = get_ddL_bydz_factor(dL_Mpc)
+    dV_dMpc_cube = 4.0 * np.pi * cosmo.differential_comoving_volume(z_at_dL)/ ddL_dz
+    dV_dzGpc3 = dV_dMpc_cube.to(u.Gpc**3 / u.sr).value
+    return dV_dzGpc3
+
+
+def IntegrateRm1m2_wrt_m2(m1val, m2val, Ratem1m2):
+    ratem1 = np.zeros(len(m1val))
+    ratem2 = np.zeros(len(m2val))
+    xval = 1.0 *m1val
+    yval = 1.0 *m2val
+    kde = Ratem1m2
+    for xid, m1 in enumerate(m1val):
+        y_valid = yval <= xval[xid]  # Only accept points with y <= x
+        y_q1 = np.argmin(abs(xval[xid] - yval))  # closest y point to y=x
+        rate_vals = kde[y_valid, xid]
+        ratem1[xid] = integrate.simpson(rate_vals, x=yval[y_valid])
+    for yid, m2 in enumerate(m2val):
+        x_valid = xval >= yval[yid]  # Only accept points with y <= x
+        rate_vals = kde[x_valid, yid]
+        ratem2[yid] = integrate.simpson(rate_vals,x= xval[x_valid])
+    return ratem1
+
+
+
+def compute_rate_fixed_dL(hdf_file, start_iter, end_iter, eval_samples, m1grid, m2grid, dLval):
+    volume_factor = get_dVdz_factor(dLval)
+    m1det = get_mass_indetector_frame(m1grid, dLval)    
+    m2det = get_mass_indetector_frame(m2grid, dLval)    
+    dLval = np.array(dLval)
+    XX, YY, ZZ = np.meshgrid(m1grid, m2grid, dLval, indexing='ij')
+    XXdet, YYdet, ZZdet = np.meshgrid(m1det, m2det, dLval, indexing='ij')
+    xy_grid_pts = np.column_stack([XX.ravel(), YY.ravel(), ZZ.ravel()])
     kde_list = []
+    rate_list = []
     # Open the HDF5 file
     with h5py.File(hdf_file, 'r') as hdf:
         for i in range(start_iter, end_iter + 1):
@@ -661,8 +727,9 @@ def compute_median_kde(hdf_file, start_iter, end_iter, eval_samples, XX, YY, dLg
                 rescale=[1/bwx, 1/bwy, 1/bwz],
                 alpha=alpha
             )
-            
+              
             # Evaluate the KDE on the evaluation samples
+
             eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
             #slice along dL dimension
             M1_slice, M2_slice, KDE_slice =  get_sliced_data(XX, YY, eval_kde3d, dLgrid, dL_sliceval=500)
@@ -687,5 +754,3 @@ hdf_file = opts.output_filename+'del_test.hdf5'  # Your HDF5 file path
 median_kde = compute_median_kde(hdf_file, 10, 20, eval_samples,  XX, YY, p3grid)
 print("Median KDE computed for iterations 10-20.")
 
-#once we get data how we want to plot?
-u_plot2.average2Dkde_plot(meanxi1, meanxi2, M1_slice, M2_slice, iter2Dkde_list[discard:], pathplot=opts.pathplot, titlename=1001, plot_label='KDE', x_label='m1', y_label='m2', plottag='allKDEscombined_')

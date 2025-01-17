@@ -53,6 +53,59 @@ def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1
     plt.close()
     return 0
 
+
+def plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False): 
+    from mpl_toolkits.mplot3d import Axes3D
+    # 3D scatter plot
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection='3d')
+    # Plot the data with logarithmic color scaling
+    sc = ax.scatter(flat_samples1, flat_samples2, flat_samples3, c=flat_pdetlist, cmap='viridis', s=10, norm=LogNorm(vmin=1e-5, vamx=1))
+    plt.colorbar(sc, label=r'$p_\mathrm{det}(m_1, m_2, d_L)$')
+
+    # Set axis labels and limits
+    ax.set_xlabel(r'$m_{1, source} [M_\odot]$', fontsize=20)
+    ax.set_ylabel(r'$m_{2, source} [M_\odot]$', fontsize=20)
+    ax.set_zlabel(r'$d_L [Mpc]$', fontsize=20)
+    # Adjust layout and save the figure
+    plt.tight_layout()
+    plt.savefig(pathplot+save_name)
+    if show_plot ==True:
+        plt.show()
+
+    plt.close()
+    return 0
+
+def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
+    fig, ax1 = plt.subplots(figsize=(8, 6))
+    # Scatter plot on the primary axis
+    scatter = ax1.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10, cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1))
+    cbar = plt.colorbar(scatter, ax=ax1, label=r'$p_\mathrm{det}$',  pad=0.1)
+    cbar.set_label(r'$p_\mathrm{det}$', fontsize=20)
+    # Primary axis labels and log scale
+    ax1.set_xlabel(xlabel, fontsize=20)
+    ax1.set_ylabel(ylabel, fontsize=20)
+    # Secondary y-axis for flat_sample3
+    ax2 = ax1.twinx()  # Create a twin y-axis
+    ax2.loglog()
+    ax2.scatter(flat_samples1, flat_samples_z, c=flat_pdetlist, s=1, cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1), alpha=0)
+    custom_ticks = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 1.2]  # Custom tick positions
+    ax2.set_yticks(custom_ticks)  # Specify custom ticks
+    ax2.set_yticklabels([f'{val:.1f}' for val in custom_ticks])
+    ax2.set_ylabel(r'$z$', fontsize=20)  # Add secondary axis label
+    ax2.set_ylim(0.1, )
+    ax2.grid(False)
+    ax1.loglog()
+    plt.subplots_adjust(right=0.6)  # Shift the plot slightly left to make space for the secondary y-axis and color bar
+
+    #plt.title(title, fontsize=20)
+    plt.tight_layout()
+    plt.savefig(pathplot+save_name)
+    if show_plot ==True:
+        plt.show()
+    plt.close()
+    return 0
+
 def average2D_m1dL_kde_plot(m1vals, dLvals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='m2', plottag='Average', dLval=500):
     sample1, sample2 = m1vals, dLvals
     CI50 = np.percentile(kdelists, 50, axis=0)
@@ -162,37 +215,44 @@ def histogram_datalist(datalist, dataname='bw',  pathplot='./', Iternumber=1):
     plt.close()
     return 0
 
-def average2Dkde_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='dL', show_plot=False):
+
+def average2Dkde_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='m2', plottag='Average', dLval=500):
+    volume_factor = get_dVdz_factor(dLval) #one value
     sample1, sample2 = m1vals, m2vals
-    CI50 = np.percentile(kdelists, 50, axis=0) 
-    fig, axl = plt.subplots(1,1,figsize=(8,6))
+    CI50 = np.percentile(kdelists, 50, axis=0)/volume_factor
     max_density = np.max(CI50)
     max_exp = np.floor(np.log10(max_density))  # Find the highest power of 10 below max_density
     contourlevels = 10 ** (max_exp - np.arange(4))[::-1]
-    #if plot_label=='Rate':
-    #    contourlevels = np.logspace(-3, 3, 7)#np.array([1e-4, 3e-4,1e-3, 3e-3, 1e-2, 3e-2, 6e-2, 1e-1, 3e-1, 6e-1, 1, 10, 18])
-    #else:
-    #    contourlevels =np.logspace(-5, 0, 6) 
-    p = axl.pcolormesh(XX, YY, CI50, cmap=plt.cm.get_cmap('Purples'), norm=LogNorm(vmin=contourlevels[0], vmax =contourlevels[-1]),  label=r'$p(m_1, d_L)$')
+    fig, axl = plt.subplots(1,1,figsize=(8,6))
+    p = axl.pcolormesh(XX, YY, CI50, cmap=plt.cm.get_cmap('Purples'), norm=LogNorm(vmin=contourlevels[0], vmax=contourlevels[-1]))
     cbar = plt.colorbar(p, ax= axl)
-    if plot_label =='Rate':
-        cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}d_L [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$',fontsize=18)
-    else:
-        cbar.set_label(r'$p(m_{1, source}, d_L)$',fontsize=18)
-    CS = axl.contour(XX, YY, CI50, colors='black', levels=contourlevels ,linestyles='dashed', linewidths=2, norm=LogNorm())
-    axl.scatter(sample1, sample2,  marker="+", color="r", s=20, label='medianval')
-    axl.set_ylabel(r'$d_L\,[Mpc]$', fontsize=18)
-    axl.set_xlabel(r'$m_\mathrm{1, source} \,[M_\odot]$', fontsize=18)
-    axl.legend()
+    cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}m_2\mathrm{d}dV_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-2}]$',fontsize=18)
+    CS = axl.contour(XX, YY, CI50, colors='black', levels=contourlevels ,linestyles='dashed', linewidths=2, norm=LogNorm(vmin=contourlevels[0], vmax=contourlevels[-1]))
+    axl.scatter(sample1, sample2,  marker="+", color="r", s=20)
+    axl.scatter(sample2, sample1,  marker="+", color="r", s=20)
+    axl.fill_between(np.arange(0, 100), np.arange(0, 100),100 , color='white',alpha=1,zorder=50)
+    axl.fill_between(np.arange(0, 50), np.arange(0, 50), 50 , color='white',alpha=1,zorder=100)
+    axl.set_ylim(3, 101)
+    axl.tick_params(axis="y",direction="in")
+    axl.yaxis.tick_right()
+    axl.yaxis.set_ticks_position('both')
+    axl.set_ylabel(r'$m_2\,[M_\odot]$', fontsize=18)
+    cbar.ax.tick_params(labelsize=20)
+    axl.tick_params(labelsize=18)
+    axl.set_xlabel(r'$m_1\,[M_\odot]$', fontsize=18)
+    scale_y = 1#e3
+    ticks_y = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/scale_y))
+    axl.yaxis.set_major_formatter(ticks_y)
+    axl.set_xlim(3, 100.1)
     axl.loglog()
-    #axl.set_aspect('equal')
+    axl.set_aspect('equal')
+    axl.set_title('dL={0:.1f}[Mpc]'.format(dLval))
     fig.tight_layout()
-    plt.savefig(pathplot+"average_"+plot_label+"{0}.png".format(titlename))
-    if show_plot== True:
-        plt.show()
-    else:
-        plt.close()
+    plt.savefig(pathplot+plottag+'m1_'+y_label+'_2D'+plot_label+'Iter{0}dL{1:.3f}.png'.format(titlename, dLval), bbox_inches='tight')
+    plt.close()
+
     return CI50
+
 
 def average2DlineardLrate_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='dL', show_plot=False):
     sample1, sample2 = m1vals, m2vals
