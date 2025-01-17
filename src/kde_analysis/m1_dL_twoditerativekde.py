@@ -78,7 +78,7 @@ opts = parser.parse_args()
 
 #### min bw choice for dL
 min_bw_dL = opts.min_bw_dLdim
-print("min bw for dL = ", min_bw_dL
+print("min bw for dL = ", min_bw_dL)
 index_powerlaw_m2 = opts.power_index_m2
 m2min = opts.min_m2_integration
 print("powerlaw on m2 has index,  min m2 =",  index_powerlaw_m2, m2min)
