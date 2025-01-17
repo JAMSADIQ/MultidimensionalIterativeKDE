@@ -531,7 +531,7 @@ for k in d1.keys():
         pdet_values =  np.zeros(len(d_Lvalues))
         #print("minm2, beta are", index_powerlaw_m2, minm2,  "used in pdet")
         for i in range(len(d_Lvalues)):
-            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], minm2, d_Lvalues[i], beta=index_powerlaw_m2, classcall=g)
+            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], m2min, d_Lvalues[i], beta=index_powerlaw_m2, classcall=g)
     else:
         m_values = d1[k][...]
         mdet_values = d1[k][...]*(1.0 + dz1[k][...])
@@ -539,7 +539,7 @@ for k in d1.keys():
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
         pdet_values =  np.zeros(len(d_Lvalues))
         for i in range(len(d_Lvalues)):
-            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], minm2, d_Lvalues[i], beta=index_powerlaw_m2, classcall=g)
+            pdet_values[i] = u_pdet.pdet_of_m1_dL_powerlawm2(mdet_values[i], m2min, d_Lvalues[i], beta=index_powerlaw_m2, classcall=g)
     pdetlists.append(pdet_values)
     sampleslists1.append(m_values)
     sampleslists2.append(d_Lvalues)
