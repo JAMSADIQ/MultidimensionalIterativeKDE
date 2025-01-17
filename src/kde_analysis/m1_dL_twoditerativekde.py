@@ -185,7 +185,7 @@ def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
 
 
 #this is specific to m1-dL analysis note for 3D we need to fix this
-def prior_factor_function(samples, redshift_vals, dl_prior_power=2.0, redshift_prior_power=2.0):
+def prior_factor_function(samples, redshift_vals, dl_prior_power, redshift_prior_power):
     """
     Compute a prior factor for reweighting for dL and masses from redshift to the source frame.
     For non-cosmo pe files:
