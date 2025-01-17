@@ -489,7 +489,7 @@ print(sampleslists.shape)
 sample = np.vstack((meanxi1, meanxi2, meanxi3)).T
 ######################################################
 ################################################################################
-def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw_dL=0.01):
+def get_kde_obj_eval(sample, rescale_arr, alphachoice, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw_dL=0.01):
     maxRescale_dL = 1.0/maxbw_dL
     #Apply m1-m2 symmetry in the samples before fitting
     if mass_symmetry:
@@ -516,7 +516,7 @@ def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('
 ##First median samples KDE
 init_rescale_arr = [1., 1., 1.]
 init_alpha_choice = [0.5]
-current_kde, errorbBW, erroraALP = get_kde_obj_eval(sample, xy_grid_pts, init_rescale_arr, init_alpha_choice, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw_dL=opts.min_bw_dLdim)
+current_kde, errorbBW, erroraALP = get_kde_obj_eval(sample,  init_rescale_arr, init_alpha_choice, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw_dL=opts.min_bw_dLdim)
 bwx, bwy, bwz = errorbBW[0], errorbBW[1], errorbBW[2]
 print(errorbBW)
 
@@ -568,7 +568,7 @@ for i in range(Total_Iterations + discard):
     if opts.bootstrap_option =='poisson':
         rwsamples = np.concatenate(rwsamples)
     print("iter", i, "  totalsamples = ", len(rwsamples))
-    current_kde, shiftedbw, shiftedalp = get_kde_obj_eval(np.array(rwsamples), xy_grid_pts, init_rescale_arr, init_alpha_choice, input_transf=('log', 'log', 'none'), mass_symmetry=True,  minbw_dL=opts.min_bw_dLdim)
+    current_kde, shiftedbw, shiftedalp = get_kde_obj_eval(np.array(rwsamples), init_rescale_arr, init_alpha_choice, input_transf=('log', 'log', 'none'), mass_symmetry=True,  minbw_dL=opts.min_bw_dLdim)
     bwx, bwy, bwz = shiftedbw[0], shiftedbw[1], shiftedbw[2]
     print("bwvalues", bwx, bwy, bwz)
     group = frateh5.create_group(f'iteration_{i}')
