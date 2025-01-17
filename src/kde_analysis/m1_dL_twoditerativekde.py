@@ -243,7 +243,7 @@ def get_random_sample(original_samples, bootstrap='poisson'):
     return random_unweighted_sample
 
 
-def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None, , max_pdet_cap=0.1):
+def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None, max_pdet_cap=0.1):
     """
     Generate  reweighted sample/samples from the original samples based on their probabilities under a given kernel density estimate (KDE) and optional transformations.
 
