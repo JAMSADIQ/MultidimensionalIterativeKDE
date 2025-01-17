@@ -469,8 +469,7 @@ def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('
 # Main execution begins here
 #STEP I: call the PE sample data and get PDET on PE samples using power law on m2
 injection_file = opts.injectionfile 
-#see this link: https://zenodo.org/records/7890437
-injection_file = "/home/jxs1805/Research/CITm1dL/endo3_bbhpop-LIGO-T2100113-v12.hdf5"
+#see this link: https://zenodo.org/records/7890437:  "endo3_bbhpop-LIGO-T2100113-v12.hdf5"
 with h5.File(injection_file, 'r') as f:
     T_obs = f.attrs['analysis_time_s']/(365.25*24*3600) # years
     N_draw = f.attrs['total_generated']
@@ -778,7 +777,7 @@ for plottitle in ['offset', 'median']:
     plt.savefig(opts.pathplot+plottitle+'_rate_m1_at_slice_dLplot_with_redshift_colors_log_Xaxis.png')
     plt.close()
         
-for val in [300, 500, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3500, 4000:
+for val in [300, 500, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3500, 4000]:
     closest_index = np.argmin(np.abs(YY - val))
     fixed_dL_value = YY.flat[closest_index]
     print(fixed_dL_value)
