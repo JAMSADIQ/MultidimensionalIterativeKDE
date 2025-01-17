@@ -508,12 +508,13 @@ f2dL = h5.File(opts.datafilename2, 'r')
 #f2dL = h5.File('/home/jxs1805/Research/CITm1dL/PEfiles/Final_noncosmo_GWTC3_dL_datafile.h5', 'r')
 d2 = f2dL['randdata']
 
+medianlist1 = fm1['initialdata/original_mean'][...]
+medianlist2 = f2dL['initialdata/original_mean'][...]
+
 # to save samples for iterative reweighting
 sampleslists1 = []
-medianlist1 = []
 eventlist = []
 sampleslists2 = []
-medianlist2 = []
 redshift_lists = []
 pdetlists = []
 
@@ -543,8 +544,6 @@ for k in d1.keys():
     sampleslists1.append(m_values)
     sampleslists2.append(d_Lvalues)
     redshift_lists.append(redshift_values)
-    medianlist1.append(np.percentile(m_values, 50))
-    medianlist2.append(np.percentile(d_Lvalues, 50))
 
 fm1.close()
 f2dL.close()
