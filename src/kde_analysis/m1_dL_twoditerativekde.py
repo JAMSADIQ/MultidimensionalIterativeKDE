@@ -581,7 +581,7 @@ Npoints = opts.Npoints #200 bydefault
 p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
 p2grid = np.linspace(ymin, ymax, 150) #here we are using 150 points
 
-XX, YY = np.meshgrid(p1grid, p2grid)
+XX, YY = np.meshgrid(p1grid, p2grid, indexing='ij')
 xy_grid_pts = np.column_stack([XX.ravel(), YY.ravel()])
 
 sample = np.vstack((meanxi1, meanxi2)).T
