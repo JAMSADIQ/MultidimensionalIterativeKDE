@@ -50,7 +50,7 @@ parser.add_argument('--parameter2', default='m2', help='Name of parameter for y-
 parser.add_argument('--parameter3', default='dL', help='Name of parameter for z-axis of KDE.')
 # Priors for reweighting 
 parser.add_argument('--dl-prior-power', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
-parser.add_argument('--redshift-prior-power ', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
+parser.add_argument('--redshift-prior-power', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
 # KDE grid options: limits and resolution
 parser.add_argument('--m1-min', default=5.0, type=float, help='Minimum value for primary mass m1.')
 parser.add_argument('--m1-max', default=100.0, type=float, help='Maximum value for primary mass m1.')
