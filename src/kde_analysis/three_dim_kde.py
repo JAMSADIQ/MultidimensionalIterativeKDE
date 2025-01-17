@@ -84,12 +84,35 @@ print(f'max rescal factor in dL dim = {maxRescale_dLdim}')
 #set the prior factors correctly here before reweighting
 prior_kwargs = {'dl_prior_power': opts.dl_prior_power, 'redshift_prior_power': opts.redshift_prior_power}
 print(f"prior powers: {prior_kwargs}")
+print(f"pdet cap:  {opts.max_pdet}")
 ###cosmology 
 H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
 
 def get_massed_indetector_frame(dLMpc, mass):
+    """
+    Convert the mass of an object to its equivalent in the detector frame,
+    accounting for cosmological redshift.
+
+    This function computes the effective mass of an object observed at a
+    certain luminosity distance, considering the cosmological redshift.
+
+    Parameters:
+    -----------
+    dLMpc : float or array
+        The luminosity distance to the object in megaparsecs (Mpc). If provided as a Quantity,
+        it should have units of Mpc.
+
+    mass : float or array
+        The source frame mass
+    Returns:
+    --------
+    mdet : float or array
+        mass of the object in the detector frame (accounting for redshift).
+        The returned valuescaled by the cosmological factor (1+z)
+    """
+
     zcosmo = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
     mdet = mass*(1.0 + zcosmo)
     return mdet
@@ -174,7 +197,24 @@ def prior_factor_function(samples, redshift_vals, dl_prior_power=2.0, redshift_p
 
 
 def get_random_sample(original_samples, bootstrap='poisson'):
-    """without reweighting"""
+    """
+    Generate a random sample from the provided original samples
+    
+    Parameters:
+    -----------
+    original_samples : array-like
+        The array or list of original samples to draw from
+
+    bootstrap : str, optional, default='poisson'
+        The bootstrap method to use for resampling. Options:
+        - 'poisson': The sample size will be drawn from a 
+            Poisson distribution with mean = 1.
+
+    Returns:
+    --------
+    random_sample : ndarray
+         randomly selected sample/samples(/empty) from the original samples
+    """
     rng = np.random.default_rng()
     if bootstrap =='poisson':
         reweighted_sample = rng.choice(original_samples, np.random.poisson(1))
@@ -185,12 +225,11 @@ def get_random_sample(original_samples, bootstrap='poisson'):
 
 
 def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
-  """Applies the min(10, 1/pdet) or  max(0.1, pdet)
+  """Applies   max(0.1, pdet)
   function to each element in the given list.
   Returns:
     A new list containing the results of applying the function to each element.
   """
-
   result = []
   for pdet in pdet_list:
     result.append(max(max_pdet_cap, pdet))
@@ -198,29 +237,64 @@ def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
 
 def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function,  prior_factor_kwargs=None, max_pdet_cap=0.1):
     """
-    inputs 
-    original_samples: list of PE sample of an event
-    redshiftvals = for prior factor
-    pdet_vals = pdet on PE samples redshiftvals
-    fpop_kde: kde_object [GaussianKDE(opt alpha, opt bw and Cov=True)]
-    kwargs:
-    bootstrap: [poisson or no-poisson] from araparser option
-    prior_factor: for ln parameter in we need to handle non uniform prior
-    return: reweighted_sample 
-    use in np.random.choice  on kwarg 
+    Generate  reweighted random sample/samples  from the original PE samples
+    
+    This function adjusts the probability of each sample based on a kernel density estimate (KDE) for the population
+    distribution, the prior factor, and detection probability values, and then performs the random resampling using 
+    `np.random.choice`  with or without poisson sampling size
+
+    Parameters:
+    -----------
+    original_samples : list or array-like
+        The list or array of PE samples representing a set of events or observations.
+        
+    redshiftvals : array-like
+        The redshift values corresponding to the `original_samples`, used to compute prior factors.
+        
+    pdet_vals : array-like
+        The detection probability values for each sample, used to scale the KDE estimate.
+        
+    fpop_kde : KDE object
+        A kernel density estimate (KDE) object, such as a `GaussianKDE`, that models the population distribution.
+        It is used to calculate the KDE at the sample points.
+        
+    bootstrap : str, optional, default='poisson'
+        The bootstrap method to use for resampling. Options:
+        - 'poisson': Resampling is done with sample size drawn from a Poisson distribution with mean = 1.
+        - Any other value: Uniform random sampling 
+        
+    prior_factor : callable, optional, default=prior_factor_function
+        A function that calculates the prior factor for each sample, typically dependent on the redshift.
+        It adjusts the sample probabilities based on a non-uniform prior.
+        
+    prior_factor_kwargs : dict, optional, default=None
+        Additional keyword arguments to pass to the `prior_factor` function when calculating prior factors.
+        
+    max_pdet_cap : float, optional, default=0.1
+        The maximum detection probability cap. Detection probabilities above this threshold will be scaled down 
+        accordingly 
+
+    Returns:
+    --------
+    reweighted_sample : ndarray
+        randomly selected, reweighted sample/samples  from the `original_samples`. 
     """
     # Ensure prior_factor_kwargs is a dictionary
     if prior_factor_kwargs is None:
         prior_factor_kwargs = {}
 
+    # Evaluate the KDE and apply the maximum detection probability cap
     fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / apply_max_cap_function(pdet_vals, max_pdet_cap)
 
     # Adjust probabilities based on the prior factor
     frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals, **prior_factor_kwargs) 
-    #Normalize :sum=1
+    # Normalize :sum=1
     fpop_at_samples = frate_atsample/frate_atsample.sum()
 
+    # Initialize random number generator
     rng = np.random.default_rng()
+
+    # Perform resampling with or without Poisson reweighting
     if bootstrap =='poisson':
         reweighted_sample = rng.choice(original_samples, np.random.poisson(1), p=fpop_at_samples)
     else:
@@ -231,26 +305,62 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
 
 def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals, meanKDEevent, bootstrap_choice='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None, max_pdet_cap=0.1):
     """
-    sample: PE samples of an event
-    redshiftvals = for prior factor
-    pdet_vals: pdet_vals of PE samples
-    meanKDEevent: using mean of KDEs on PE samples for previous 100 iterations
-    for each iteration we get KDE on each sample, and than take mean for past 100 iteration so each point in mean KDE is mean value of KDE evaluated on a sample in previous 100 iterations
-    kwargs:
-    bootstrap: [poisson or no-poisson] from araparser option
-    prior_factor: for ln parameter in we need to handle non uniform prior
-    return: reweighted_sample 
+    Generate reweighted samples based on the median of estimated KDE train vals for a set of PE samples,
+    adjusting for detection probability and cosmological redshift.
+
+    The KDE values represent the mean of the kernel density estimates (KDE) for the last 100 iterations,
+    and the weights are modified by detection probabilities and a non-uniform prior.
+
+    Parameters:
+    -----------
+    sample : array-like
+        The PE samples representing a set of events or observations. Typically, these could be numerical or parameter sets.
+        
+    redshiftvals : array-like
+        The redshift values corresponding to the `sample`, used in the calculation of the prior factor.
+        
+    pdet_vals : array-like
+        The detection probability values for each PE sample, used to adjust the KDE weights.
+        
+    meanKDEevent : array-like
+        The mean KDE values for the PE samples, which represent the average KDE values calculated 
+        over the previous 100 iterations. These values are used as the basis for resampling probabilities.
+
+    bootstrap_choice : str, optional, default='poisson'
+        The bootstrap method to use for resampling. Options:
+        - 'poisson': Resampling with sample size drawn from a Poisson distribution with mean = 1.
+        - Any other value: Uniform random sampling without reweighting.
+        
+    prior_factor : callable, optional, default=prior_factor_function
+        A function that calculates the prior factor for each sample, typically depending on redshift. It adjusts the sample probabilities based on a non-uniform prior.
+        
+    prior_factor_kwargs : dict, optional, default=None
+        Additional keyword arguments for the `prior_factor` function when calculating prior factors.
+        
+    max_pdet_cap : float, optional, default=0.1
+           The maximum detection probability cap. Detection probabilities above this threshold will be scaled down accordingly 
+
+    Returns:
+    --------
+    reweighted_sample : ndarray
+        randomly selected, reweighted samples/sample from the `samples`, adjusted by the KDE values, prior factor,
+        and detection probabilities.
     """
     # Ensure prior_factor_kwargs is a dictionary
     if prior_factor_kwargs is None:
         prior_factor_kwargs = {}
-    # Compute KDE probabilities divide by regularized pdetvals
 
+    # Compute KDE probabilities divide by regularized pdetvals
     kde_by_pdet = meanKDEevent/apply_max_cap_function(pdet_vals, max_pdet_cap)
+
     # Adjust probabilities based on the prior factor
     kde_by_pdet  *= prior_factor(sample, redshiftvals, **prior_factor_kwargs)
+
+    #Normalize:  sum=1
     norm_mediankdevals = kde_by_pdet/sum(kde_by_pdet)
+
     rng = np.random.default_rng()
+
     if bootstrap_choice =='poisson':
         reweighted_sample = rng.choice(sample, np.random.poisson(1), p=norm_mediankdevals)
     else:
@@ -258,7 +368,7 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals,
     return reweighted_sample
 
 #######################################################################
- Main execution begins here
+# Main execution begins here
 #STEP I: call the PE sample data and get PDET on PE samples using power law on m2
 injection_file = opts.injectionfile
 #see this link: https://zenodo.org/records/7890437:  "endo3_bbhpop-LIGO-T2100113-v12.hdf5"
@@ -305,12 +415,12 @@ f3 = h5.File(opts.datafilename3, 'r')#dL
 d3 = f3['randdata']
 print(d1.keys())
 sampleslists1 = []
-medianlist1 = []
+medianlist1 = f1['initialdata/original_mean'][...]
 eventlist = []
 sampleslists2 = []
-medianlist2 = []
+medianlist2 = f2['initialdata/original_mean'][...]
 sampleslists3 = []
-medianlist3 = []
+medianlist3 = f3['initialdata/original_mean'][...]
 pdetlists = []
 redshift_lists = []
 for k in d1.keys():
@@ -345,9 +455,6 @@ for k in d1.keys():
     sampleslists2.append(m2_values)
     sampleslists3.append(d_Lvalues)
     redshift_lists.append(redshift_values)
-    medianlist1.append(np.percentile(m1_values, 50)) 
-    medianlist2.append(np.percentile(m2_values, 50)) 
-    medianlist3.append(np.percentile(d_Lvalues, 50))
 
 f1.close()
 f2.close()
@@ -362,59 +469,25 @@ flat_samples1 = np.concatenate(sampleslists1).flatten()
 flat_samples2 = np.concatenate(sampleslists2).flatten()
 flat_samples3 = np.concatenate(sampleslists3).flatten()
 flat_pdetlist = np.concatenate(pdetlists).flatten()
+flat_sample_z = np.concatenate(redshift_lists).flatten()
 print("min max m1 =", np.min(flat_samples1), np.max(flat_samples1))
 print("min max m2 =", np.min(flat_samples2), np.max(flat_samples2))
 print("min max dL =", np.min(flat_samples3), np.max(flat_samples3))
 
-# Create the scatter plot for pdet
-plt.figure(figsize=(8,6))
-plt.scatter(flat_samples1, flat_samples3, c=flat_pdetlist, cmap='viridis', norm=LogNorm())
-cbar = plt.colorbar(label=r'$p_\mathrm{det}$')
-cbar.set_label(r'$p_\mathrm{det}$', fontsize=20)
-#plt.xlim(min(flat_samples1), max(flat_samples1))
-#plt.ylim(min(flat_samples2), max(flat_samples2))
-plt.xlabel(r'$m_{1, source} [M_\odot]$', fontsize=20)
-plt.ylabel(r'$d_L [Mpc]$', fontsize=20)
-plt.loglog()
-plt.title(r'$p_\mathrm{det}$', fontsize=20)
-plt.tight_layout()
-plt.savefig(opts.pathplot+"pdetscatter.png")
-plt.close()
-############### We need plotting  work in progress
-# Create the scatter plot for pdet 
-from mpl_toolkits.mplot3d import Axes3D
-# 3D scatter plot
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection='3d')
-# Plot the data with logarithmic color scaling
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection='3d')
-sc = ax.scatter(
-    flat_samples1, 
-    flat_samples2, 
-    flat_samples3, 
-    c=flat_pdetlist, 
-    cmap='viridis', 
-    s=10, 
-    norm=LogNorm()
-)
-plt.colorbar(sc, label=r'$p_\mathrm{det}(m_1, m_2, d_L)$')
+# Create the scatter plot for pdet save with 3D analysis name
+u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',save_name="pdet_3Dm1m2dL_correct_mass_frame_m1_dL_scatter.png", pathplot=opts.pathplot, show_plot=False)
+#special plot with z on right y axis
+plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1dL_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
 
-# Set axis labels and limits
-ax.set_xlabel(r'$m_{1, source} [M_\odot]$', fontsize=20)
-ax.set_ylabel(r'$m_{2, source} [M_\odot]$', fontsize=20)
-ax.set_zlabel(r'$d_L [Mpc]$', fontsize=20)
-# Adjust layout and save the figure
-plt.tight_layout()
-plt.savefig(opts.pathplot + "pdet3Dscatter.png")
-plt.close()
+# Create the scatter plot for pdet 
+u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2dL_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
+
 ##########################################
 sampleslists = np.vstack((flat_samples1, flat_samples2, flat_samples3)).T
 sample = np.vstack((meanxi1, meanxi2, meanxi3)).T
 print(sampleslists.shape)
 sample = np.vstack((meanxi1, meanxi2, meanxi3)).T
 ######################################################
-#we are not evaluating KDE on grid just reweighting samples  will get saved 
 ################################################################################
 def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw_dL=0.01):
     maxRescale_dL = 1.0/maxbw_dL
@@ -429,7 +502,8 @@ def get_kde_obj_eval(sample, eval_pts, rescale_arr, alphachoice, input_transf=('
         kde_object = ad.KDERescaleOptimization(symsample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'lnm2', 'dL'], input_transf=input_transf)
     else:
         kde_object = ad.KDERescaleOptimization(sample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'lnm2', 'dL'], input_transf=input_transf)
-    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0.01, maxRescale_dL), (0, 1)), disp=True)#, xatol=1e-5, fatol=0.01)
+
+    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0.01, maxRescale_dL), (0, 1)), disp=True)
     print("opt results = ", dictopt)
     optbwds = 1.0/dictopt[0:-1]
     print(optbwds)
@@ -527,14 +601,13 @@ u_plot.bandwidth_correlation(iterbwylist, number_corr=discard, error=0.02,  path
 u_plot.bandwidth_correlation(iterbwzlist, number_corr=discard, error=0.02,  pathplot=opts.pathplot+'bwz_')
 u_plot.bandwidth_correlation(iteralplist, number_corr=discard,  error=0.02, param='alpha',pathplot=opts.pathplot, log=False)
 quit()
+
 ######################################################
+####### to get KDEs at fixed dL or m2=10/35 slice  maybe use another script
 if opts.m1_min is not None and opts.m1_max is not None:
     xmin, xmax = opts.m1_min, opts.m1_max
 else:
     xmin, xmax = np.min(flat_samples1), np.max(flat_samples1)
-#if  flat_samples1 is list of arrays
-#xmin = min(a.min() for a in flat_samples1)
-#xmax = max(a.max() for a in flat_samples1)
 
 if opts.param2_min is not None and opts.param2_max is not None:
     ymin, ymax = opts.param2_min, opts.param2_max
@@ -546,20 +619,19 @@ if opts.param3_min is not None and opts.param3_max is not None:
 else:
     zmin, zmax = np.min(flat_samples3) , np.max(flat_samples3)
 
-xmin, xmax = np.min(flat_samples1), np.max(flat_samples1)
-ymin, ymax = np.min(flat_samples2) , np.max(flat_samples2)
-zmin, zmax = 10, 5000#np.min(flat_samples3) , np.max(flat_samples3)
+xmin, xmax = 5, 105  #m1
+ymin, ymax = 5, 105 #m2
+zmin, zmax = 200, 8000 #dL
 Npoints = 150 #opts.Npoints
 #######################################################
 ################ We will be using masses in log scale so better to use
 ##### If we want to use log param we need proper grid spacing in log scale
 p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
 p2grid = np.logspace(np.log10(ymin), np.log10(ymax), Npoints)
-p3grid = np.linspace(zmin, zmax, 50)#Npoints) 
-#mesh grid points 
+p3grid = np.linspace(zmin, zmax, Npoints) 
 XX, YY, ZZ = np.meshgrid(p1grid, p2grid, p3grid,  indexing='ij')
 #input_transf['log', 'log', None] will automatically do it
-xy_grid_pts = np.array(list(map(np.ravel, [XX, YY, ZZ]))).T
+xy_grid_pts = np.column_stack([XX.ravel(), YY.ravel(), ZZ.ravel()])
 
 def compute_median_kde(hdf_file, start_iter, end_iter, eval_samples, XX, YY, dLgrid):
     kde_list = []
