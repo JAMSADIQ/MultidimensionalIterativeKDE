@@ -111,7 +111,7 @@ def plot_detection_probability(XX, YY, pdet2Dfilter, levels):
     plt.tight_layout()
     plt.title(r"Detection Probability ($p_\mathrm{det}$)")
     plt.title(r'$p_\mathrm{det}, \,  q^{1.26}, \, \mathrm{with} \, max(0.1, p_\mathrm{det})$', fontsize=18)
-    plt.savefig("pdetcontourplot.png"
+    plt.savefig("pdetcontourplot.png")
     plt.show()
 
 def special_plot_rate(meanxi1, meanxi2, XX, YY, pdet2Dnofilter, CI50):
@@ -231,9 +231,9 @@ plot_comoving_volume(XX, YY, volume_factor2D)
 m2_min = 5.0 #minimum m2 in integration
 beta = 1.26 #spectrial index for q  
 
-pdet2Dnofilter = frateh5['pdet2DNotranspose'][:]
+pdet2Dnofilter = frateh5['pdet2D'][:]
 pdet2D= np.maximum(pdet2Dnofilter, 0.1)
-pdet2Dfilter = frateh5['pdet2DwithcapNotranspose'][:]
+pdet2Dfilter = frateh5['pdet2Dwithcap'][:]
 #levels = [0.001,0.01,0.1, 0.2, 0.4, 0.5, 0.7, 0.8, 0.9, 1.0] for pdet2Dnofilter
 levels = [0.1, 0.2, 0.4, 0.5, 0.7, 0.8, 0.9, 1.0]
 plot_detection_probability(XX_mesh, YY, pdet2Dfilter, levels=levels)
@@ -272,7 +272,7 @@ frateh5.close()
 ratelists = iter2Drate_list[100:]
 #apply comoving volume Jacobian factor
 CI50 = np.percentile(ratelists, 50, axis=0)/volume_factor2D
-special_plot_rate(meanxi1, meanxi2, XX, YY, pdet2Dnofilter, CI50):
+special_plot_rate(meanxi1, meanxi2, XX, YY, pdet2Dnofilter, CI50)
 
 
 #median and offset plots
