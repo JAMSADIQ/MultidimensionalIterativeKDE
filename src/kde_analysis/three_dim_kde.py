@@ -1,6 +1,6 @@
 import sys
 import matplotlib
-sys.path.append('/home/jam.sadiq/PopModels/selectioneffects/cbc_pdet/pop-de/popde/')
+sys.path.append('pop-de/popde/')
 import density_estimate as d
 import adaptive_kde as ad
 import numpy as np
@@ -30,9 +30,7 @@ rcParams["grid.linewidth"] = 1.
 rcParams["grid.alpha"] = 0.6
 
 
-import utils_awkde as u_awkde
 import utils_plot as u_plot
-import alternative_utils_plot as u_plot2
 import o123_class_found_inj_general as u_pdet
 #careful parsers 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -44,12 +42,9 @@ parser.add_argument('--datafilename3', help='h5  file containing N sample of red
 parser.add_argument('--parameter1', help='name of parameter which we use for x-axis for KDE', default='m1')
 parser.add_argument('--parameter2', help='name of parameter which we use for y-axis for KDE [can be m2, Xieff, DL]', default='m2')
 parser.add_argument('--parameter3', help='name of parameter which we use for y-axis for KDE [can be m2, Xieff, DL]', default='DL')
-### For KDE in log parameter we need to add --logkde 
-parser.add_argument('--logkde', action='store_true',help='if True make KDE in log params but results will be in onlog')
-bwchoices= np.logspace(-1.5, -0.1, 15).tolist() 
-parser.add_argument('--bw-grid', default= bwchoices, nargs='+', help='grid of choices of global bandwidth')
-alphachoices = np.linspace(0.1, 1.0, 10).tolist()
-parser.add_argument('--alpha-grid', nargs="+", default=alphachoices, type=float, help='grid of choices of sensitivity parameter alpha for local bandwidth')
+### 
+parser.add_argument('--dl-prior-power', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
+parser.add_argument('--redshift-prior-power ', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
 
 # limits on KDE evulation: 
 parser.add_argument('--m1-min', help='minimum value for primary mass m1', type=float)
@@ -89,25 +84,43 @@ opts = parser.parse_args()
 maxRescale_dLdim = round(1.0/ opts.MaxbwdL)
 print(f'max rescal factor in dL dim = {maxRescale_dLdim}')
 #############for ln paramereter we need these
-def prior_factor_function(samples):
+
+H0 = 67.9  # km/s/Mpc
+omega_m = 0.3065
+cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
+
+def get_massed_indetector_frame(dLMpc, mass):
+    zcosmo = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
+    mdet = mass*(1.0 + zcosmo)
+    return mdet
+
+def prior_factor_function(samples, redshiftvals):
     """ 
     LVC use uniform-priors for masses 
-    in linear scale. so
-    reweighting need a constant factor
-
-    note that in the reweighting function 
-    if we use input masses/dL in log
-    form so when we need to factor
-    we need non-log mass/dL  so we take exp
+    in linear scale. In reweighting we need to take 
+    account for the prior factor if use masses 
+    in log scale
+    There is dL prior as well as masses 
+    if they are in source frame
     if we use non-cosmo_files we need 
     dL^3 factor 
+    Compute a prior factor for reweighting
+    for dL and masses from redshift to source frame
+
+    Args:
+        samples (np.ndarray): Array of samples with shape (N, 2), where N is the number of samples.
+        redshifts:  given (dL|mass)  one D list or array
+             redshift fatcor for  source mass prior
+    Returns:
+        np.ndarray: Prior factor for each sample.
     """
     m1val, m2val , dLval = samples[:, 0], samples[:, 1], samples[:, 2]
-    if opts.logkde:
-        factor = 1.0/(dLval)**2  # log-masses handle in the input_transf
-    else:
-        factor = np.ones_like(m1val)
-    return factor
+    # log-masses handle in the input_transf
+
+    dL_prior_factor = (dLval)**opts.dl_prior_power  
+    redshift_prior_factor = (1. + redshift)**opts.redshift_prior_power
+
+    return 1.0/(dL_prior_factor * redshift_prior_factor)
 
 
 def get_random_sample(original_samples, bootstrap='poisson'):
@@ -119,6 +132,8 @@ def get_random_sample(original_samples, bootstrap='poisson'):
         reweighted_sample = rng.choice(original_samples)
     return reweighted_sample
 
+
+
 def apply_max_cap_function(pdet_list, max_pdet_cap=opts.Maxpdet):
   """Applies the min(10, 1/pdet) or  max(0.1, pdet)
   function to each element in the given list.
@@ -128,15 +143,15 @@ def apply_max_cap_function(pdet_list, max_pdet_cap=opts.Maxpdet):
 
   result = []
   for pdet in pdet_list:
-    #result.append(min(10, 1 / pdet))
     result.append(max(max_pdet_cap, pdet))
   return np.array(result)
 
-def get_reweighted_sample(original_samples, pdet_vals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function):
+def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function):
     """
     inputs 
     original_samples: list of PE sample of an event
-    pdet_vals = pdet on PE samples 
+    redshiftvals = for prior factor
+    pdet_vals = pdet on PE samples redshiftvals
     fpop_kde: kde_object [GaussianKDE(opt alpha, opt bw and Cov=True)]
     kwargs:
     bootstrap: [poisson or no-poisson] from araparser option
@@ -145,11 +160,12 @@ def get_reweighted_sample(original_samples, pdet_vals, fpop_kde, bootstrap='pois
     use in np.random.choice  on kwarg 
     """
     fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / apply_max_cap_function(pdet_vals)
-    if opts.logkde:
-        frate_atsample = fkde_samples * prior_factor(original_samples) 
-    else:
-        frate_atsample = fkde_samples
-    fpop_at_samples = frate_atsample/frate_atsample.sum() # normalize
+
+    # Adjust probabilities based on the prior factor
+    frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals) 
+    #Normalize :sum=1
+    fpop_at_samples = frate_atsample/frate_atsample.sum()
+
     rng = np.random.default_rng()
     if bootstrap =='poisson':
         reweighted_sample = rng.choice(original_samples, np.random.poisson(1), p=fpop_at_samples)
@@ -159,7 +175,7 @@ def get_reweighted_sample(original_samples, pdet_vals, fpop_kde, bootstrap='pois
     return reweighted_sample
 
 
-def New_median_bufferkdelist_reweighted_samples(sample, pdet_vals, meanKDEevent, bootstrap_choice='poisson', prior_factor=prior_factor_function):
+def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals, meanKDEevent, bootstrap_choice='poisson', prior_factor=prior_factor_function):
     """
     sample: PE samples of an event
     pdet_vals: pdet_vals of PE samples
@@ -171,8 +187,8 @@ def New_median_bufferkdelist_reweighted_samples(sample, pdet_vals, meanKDEevent,
     return: reweighted_sample 
     """
     kde_by_pdet = meanKDEevent/apply_max_cap_function(pdet_vals)
-    if opts.logkde:
-        kde_by_pdet  *= prior_factor(sample)
+    # Adjust probabilities based on the prior factor
+    kde_by_pdet  *= prior_factor(sample, redshiftvals)
     norm_mediankdevals = kde_by_pdet/sum(kde_by_pdet)
     rng = np.random.default_rng()
     if bootstrap_choice =='poisson':
@@ -242,6 +258,7 @@ medianlist2 = []
 sampleslists3 = []
 medianlist3 = []
 pdetlists = []
+redshift_lists = []
 for k in d1.keys():
     eventlist.append(k)
     if (k  == 'GW190719_215514_mixed-nocosmo' or k == 'GW190805_211137_mixed-nocosmo'):
