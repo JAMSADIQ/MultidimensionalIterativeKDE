@@ -32,13 +32,28 @@ rcParams["grid.linewidth"] = 1.
 #rcParams["grid.linestyle"] = ':'
 rcParams["grid.alpha"] = 0.6
 
-def normdata(dataV):
-    normalized_data = (dataV - np.min(dataV)) / (np.max(dataV) - np.min(dataV))
-    return normalized_data
 
 
 dict_p = {'m1':'m_1', 'm2':'m_2', 'Xieff':'\chi_{eff}', 'chieff': '\chi_{eff}', 'DL':'D_L', 'logm1':'ln m_1', 'logm2': 'ln m_2', 'alpha':'\alpha'}
 ###########
+def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}\, \,\, q^{1.26}$',save_name="pdet_power_law_m2_correct_mass_frame_m1_dL_scatter.png", pathplot='./', show_plot=False):
+
+    plt.figure(figsize=(8,6))
+    plt.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10 ,cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1))
+    cbar = plt.colorbar(label=r'$p_\mathrm{det}$')
+    cbar.set_label(r'$p_\mathrm{det}$', fontsize=20)
+    plt.xlabel(xlabel, fontsize=20)
+    plt.ylabel(ylabel, fontsize=20)
+    plt.loglog()
+    #plt.title(title, fontsize=20)
+    plt.tight_layout()
+    plt.savefig(pathplot+save_name)
+    if show_plot ==True:
+        plt.show()
+    plt.close()
+    return 0
+
+
 def TwocontourKDE(XX, YY,  ZZ, LogMzvals, zvals, pdetvals, title='KDE', iterN=0, saveplot=False):
     contourlevels = np.logspace(-7, 0, 10)
     plt.figure(figsize=(8, 6))
