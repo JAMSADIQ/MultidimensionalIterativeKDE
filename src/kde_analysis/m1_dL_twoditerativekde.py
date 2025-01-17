@@ -165,25 +165,6 @@ def compute_pdet(mass_detector_frame, dL, beta, class_instance, classcall=None, 
     )
 
 
-def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
-    """
-    Applies the max(max_pdet_cap, pdet) function to each element in the given list.
-
-    Args:
-        pdet_list: A list of values.
-        max_pdet_cap: The maximum allowed value for each element. 
-                  Defaults to 0.1.
-
-    Returns:
-        A numpy array containing the results of applying the function to each element.
-    """
-
-    result = []
-    for pdet in pdet_list:
-        result.append(max(max_pdet_cap, pdet))
-    return np.array(result)
-
-
 #this is specific to m1-dL analysis note for 3D we need to fix this
 def prior_factor_function(samples, redshift_vals, dl_prior_power, redshift_prior_power):
     """
@@ -300,7 +281,7 @@ def get_reweighted_sample(original_samples, redshiftvals, pdetvals, fpop_kde, bo
     if prior_factor_kwargs is None:
         prior_factor_kwargs = {}
     # Compute KDE probabilities divide by regularized pdetvals
-    fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / apply_max_cap_function(pdetvals, max_pdet_cap)
+    fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / np.maximum(pdetvals, max_pdet_cap)
 
     # Adjust probabilities based on the prior factor
     frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals , **prior_factor_kwargs)
@@ -389,7 +370,7 @@ def mean_bufferkdelist_reweighted_samples(original_samples, redshiftvals, pdetva
     if prior_factor_kwargs is None:
         prior_factor_kwargs = {}
 
-    kde_interp_vals = mean_kde_interp(original_samples)/apply_max_cap_function(pdetvals, max_pdet_cap)
+    kde_interp_vals = mean_kde_interp(original_samples)/np.maximum(pdetvals, max_pdet_cap)
 
     kde_interp_vals  *= prior_factor(original_samples, redshiftvals, **prior_factor_kwargs)
     norm_mediankdevals = kde_interp_vals/sum(kde_interp_vals)
