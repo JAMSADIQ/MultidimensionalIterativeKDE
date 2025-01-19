@@ -36,6 +36,7 @@ rcParams["grid.alpha"] = 0.6
 
 dict_p = {'m1':'m_1', 'm2':'m_2', 'Xieff':'\chi_{eff}', 'chieff': '\chi_{eff}', 'DL':'D_L', 'logm1':'ln m_1', 'logm2': 'ln m_2', 'alpha':'\alpha'}
 ###########
+
 def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}\, \,\, q^{1.26}$',save_name="pdet_power_law_m2_correct_mass_frame_m1_dL_scatter.png", pathplot='./', show_plot=False):
 
     plt.figure(figsize=(8,6))
@@ -106,13 +107,28 @@ def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetl
     plt.close()
     return 0
 
+def plot_detection_probability(XX, YY, pdet2Dfilter, levels=[0.1, 0.2,0.3,0.4, 0.5, 0.6, 0.7,0.8, 0.9, 1.0], pathplot='./', save_name='pdetcontourplot.png'):
+    plt.figure(figsize=(10, 7))
+    plt.contourf(XX, YY, pdet2Dfilter, levels=levels, cmap='viridis', norm=Normalize(vmax=1))
+    plt.colorbar(label=r"$p_\mathrm{det}$")
+    plt.contour(XX, YY, pdet2Dfilter, colors='white', linestyles='dashed', levels=levels)
+    plt.xlabel(r"$m_{1,\mathrm{source}}\,[M_\odot]$")
+    plt.ylabel(r"$d_L\,[\mathrm{Mpc}]$")
+    plt.loglog()
+    plt.tight_layout()
+    #plt.title(r"Detection Probability ($p_\mathrm{det}$)")
+    #plt.title(r'$p_\mathrm{det}, \,  q^{1.26}, \, \mathrm{with} \, max(0.1, p_\mathrm{det})$', fontsize=18)
+    plt.savefig(pathplot+save_name)
+    plt.show()
+
+############################# Resultsplot #####################
 def average2D_m1dL_kde_plot(m1vals, dLvals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='m2', plottag='Average', dLval=500):
     sample1, sample2 = m1vals, dLvals
     CI50 = np.percentile(kdelists, 50, axis=0)
     print("inside", CI50.shape)
     max_density = np.max(CI50)
     max_exp = np.floor(np.log10(max_density))  # Find the highest power of 10 below max_density
-    contourlevels = 10 ** (max_exp - np.arange(4))[::-1]
+    contourlevels = 10 ** (max_exp - np.arange(3))[::-1]
     fig, axl = plt.subplots(1,1,figsize=(8,6))
     p = axl.pcolormesh(XX, YY, CI50, cmap=plt.cm.get_cmap('Purples'), norm=LogNorm(vmin=contourlevels[0], vmax=contourlevels[-1]))
     cbar = plt.colorbar(p, ax= axl)
@@ -134,6 +150,76 @@ def average2D_m1dL_kde_plot(m1vals, dLvals, XX, YY, kdelists, pathplot='./', tit
     plt.close()
 
     return CI50
+
+# combined average rate plot with correct units and contour line of pdet
+def special_plot_rate(meanxi1, meanxi2, XX, YY, pdet2Dnofilter, CI50, save_name="Special_pdetcontourlines_on_combined_average_Rate1000Iteration.png", pathplot='./'):
+    fig, axl = plt.subplots(1, 1, figsize=(8, 6))
+    levels_pdet = [0.01, 0.03, 0.1]
+    # Plot PDET contours
+    pdet_contour = axl.contour(
+        XX, YY, pdet2Dnofilter,
+        colors=['orange'] * len(levels_pdet),
+        levels=levels_pdet,
+        linewidths=2,
+        linestyles=['--'] * len(levels_pdet)
+    )
+
+    # Add labels to contours
+    contour_label_positions = []
+    for collection in pdet_contour.collections:
+        paths = collection.get_paths()
+        for path in paths:
+            vertices = path.vertices
+            midpoint_index = len(vertices) // 2
+            contour_label_positions.append(vertices[midpoint_index])
+
+    axl.clabel(
+        pdet_contour,
+        inline=True,
+        inline_spacing=8,
+        use_clabeltext=True,
+        fontsize=16,
+        fmt="%.2f",
+        manual=contour_label_positions
+    )
+
+    # Determine contour levels for CI50
+    max_density = np.max(CI50)
+    max_exp = np.floor(np.log10(max_density))
+    contourlevels = 10 ** (max_exp - np.arange(3))[::-1]
+    # CI50 colormap
+    p = axl.pcolormesh(
+        XX, YY, CI50,
+        cmap=plt.cm.Purples,
+        norm=LogNorm(vmin=contourlevels[0], vmax=contourlevels[-1]),
+        shading='auto'
+    )
+    cbar = plt.colorbar(p, ax=axl)
+    cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}V_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$', fontsize=20)
+
+    # CI50 contour lines
+    axl.contour(
+        XX, YY, CI50,
+        colors='black',
+        levels=contourlevels,
+        linestyles='dashed',
+        linewidths=1.5,
+        norm=LogNorm(vmin=contourlevels[0], vmax=contourlevels[-1])
+    )
+
+    # Add scatter points
+    axl.scatter(meanxi1, meanxi2, marker="+", color="r", s=20)
+    # Set axis labels and limits
+    axl.set_ylabel(r'$d_L\,[\mathrm{Mpc}]$', fontsize=20)
+    axl.set_xlabel(r'$m_\mathrm{1, source} \,[M_\odot]$', fontsize=20)
+    axl.set_ylim(ymin=200, ymax=7000)
+    axl.semilogx()
+
+    # Save the plot
+    fig.tight_layout()
+    plt.savefig(pathplot + save_name)
+    plt.close()
+
 
 
 def new2DKDE(XX, YY,  ZZ, Mv, z, saveplot=False, plot_label='KDE', title='median', show_plot=False, pathplot='./'):
@@ -264,11 +350,9 @@ def average2DlineardLrate_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', 
     p = axl.pcolormesh(XX, YY, CI50, cmap=plt.cm.get_cmap('Purples'), norm=LogNorm(vmin=contourlevels[0], vmax =contourlevels[-1]),  label=r'$p(m_1, d_L)$')
     cbar = plt.colorbar(p, ax= axl)
     if plot_label =='Rate':
-        #cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{dln}m_1\mathrm{d}d_L [\mathrm{Mpc}^{-1}\, (\mathrm{ln m}/{M}_\odot)^{-1}  \mathrm{yr}^{-1}]$',fontsize=18)
         cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}d_L [\mathrm{Mpc}^{-1}\, (\mathrm{m}/{M}_\odot)^{-1}  \mathrm{yr}^{-1}]$',fontsize=18)
     else:
-        #cbar.set_label(r'$p(\mathrm{ln}m_{1, source}, d_L)$',fontsize=18)
-        cbar.set_label(r'$p(m_{1, source}, d_L)$',fontsize=18)
+         cbar.set_label(r'$p(m_{1, source}, d_L)$',fontsize=18)
     CS = axl.contour(XX, YY, CI50, colors='black', levels=contourlevels ,linestyles='dashed', linewidths=2, norm=LogNorm())
     axl.scatter(sample1, sample2,  marker="+", color="r", s=20)
     axl.set_ylabel(r'$d_L\,[Mpc]$', fontsize=18)

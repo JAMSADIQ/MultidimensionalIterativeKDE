@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py as h5
 from scipy.interpolate import RegularGridInterpolator
+from scipy.integrate import quad
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib import rcParams
 from astropy.cosmology import FlatLambdaCDM, z_at_value
@@ -82,10 +83,12 @@ print("min bw for dL = ", min_bw_dL)
 index_powerlaw_m2 = opts.power_index_m2
 m2min = opts.min_m2_integration
 print("powerlaw on m2 has index,  min m2 =",  index_powerlaw_m2, m2min)
+###################################################################
 # Define cosmology
 H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
+c = 299792458.0/1000.0  #km/s
 
 def get_mass_in_detector_frame(dL_Mpc, mass):
     """
@@ -101,6 +104,109 @@ def get_mass_in_detector_frame(dL_Mpc, mass):
     zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc).value
     mdet = mass*(1.0 + zcosmo)
     return mdet
+
+#### For conversion of units dR/dm1dL to dR/dm1dVc = dR/dm1dL*(dL/dz)/(dVc/dz) 
+#Based on Hogg 1996
+def hubble_parameter(z, H0, Omega_m):
+    """
+    Calculate the Hubble parameter H(z) for a flat Lambda-CDM cosmology.
+    https://ned.ipac.caltech.edu/level5/Hogg/Hogg4.html
+    """
+    Omega_Lambda = 1.0 - Omega_m
+    return H0 * np.sqrt(Omega_m * (1 + z)**3 + Omega_Lambda)
+
+def comoving_distance(z, H0, Omega_m):
+    """
+    Compute the comoving distance D_c(z) in Mpc.
+    we can also use astropy
+    astropy_val = cosmo.comoving_distance(z)
+    """
+    astropy_val = cosmo.comoving_distance(z)
+    integrand = lambda z_prime: c / hubble_parameter(z_prime, H0, Omega_m)
+    D_c, _ = quad(integrand, 0, z)
+    return D_c
+
+
+def comoving_distance_derivative(z, H0, Omega_m):
+    """
+    Compute the derivative of comoving distance dD_c/dz in Mpc.
+    """
+    return c / hubble_parameter(z, H0, Omega_m)
+
+
+def precompute_cosmology_factors(z, dL_Mpc=None):
+    """
+    Precompute commonly used cosmology values to avoid redundant calculations.
+    Returns a dictionary containing:
+    - comoving_distance: D_c in Mpc
+    - dDc_dz: d(D_c)/dz in Mpc
+    - luminosity_distance: D_L in Mpc (if dL_Mpc provided)
+    """
+    factors = {}
+    factors["comoving_distance"] = comoving_distance(z, H0, Omega_m)
+    factors["dDc_dz"] = comoving_distance_derivative(z, H0, Omega_m)
+    if dL_Mpc is not None:
+        factors["luminosity_distance"] = dL_Mpc
+    return factors
+
+def get_dDL_dz_factor(z_at_dL, precomputed=None):
+    """
+    Compute d(D_L)/dz using precomputed cosmology factors if available.
+    given redshift 
+    from notes: dL = (1+z)*Dc
+    """
+    if precomputed is None:
+        precomputed = precompute_cosmology_factors(z_at_dL)
+    Dc = precomputed["comoving_distance"]
+    dDc_dz = precomputed["dDc_dz"]
+    return Dc + (1 + z_at_dL) * dDc_dz
+
+def get_dVc_dz_factor(z_at_dL):
+    """
+    Compute d(V_c)/dz in Gpc^3 units using precomputed cosmology factors.
+    return dVc/dz in Gpc^3 units
+    Vc = 4pi/3 Dc^3 (Dc = comoving disatnce)
+    dVc/dz = 4pi Dc  dDc/dz
+    """
+    if precomputed is None:
+        precomputed = precompute_cosmology_factors(z_at_dL)
+    Dc = precomputed["comoving_distance"]
+    dDc_dz = precomputed["dDc_dz"]
+    dVcdz = 4 * np.pi * Dc**2 * dDc_dz
+    return dVcdz / 1e9  # Convert to Gpc^3
+
+
+def get_volume_factor(dLMpc):
+    """
+    Compute the volume factor for a given luminosity distance in Mpc.
+    result is in Gpc^3-yr
+    """
+    z_at_dL = z_at_value(cosmo.luminosity_distance, dLMpc * u.Mpc).value
+    precomputed = precompute_cosmology_factors(z_at_dL, dL_Mpc=dLMpc)
+    ddL_dz = get_dDL_dz_factor(z_at_dL, precomputed)
+    dVc_dz = get_dVc_dz_factor(z_at_dL, precomputed)
+    #need to check this factor
+    factor_time_det_frame = 1.0 + z_at_dL
+    return dVc_dz / ddL_dz / factor_time_det_frame
+
+def get_dVcdz_factor(dLMpc):
+    """
+    only works for float value not for arrays
+    """
+    z_at_dL = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
+    dV_dMpc_cube = 4.0 * np.pi * cosmo.differential_comoving_volume(z_at_dL)
+    dVc_dzGpc3 = dV_dMpc_cube.to(u.Gpc**3 / u.sr).value
+    return dVc_dzGpc3
+
+
+#testing it
+dLvals = np.linspace(100, 8000, 100)
+Vf = np.zeros(len(dLvals))
+for i in range(len(Vf)):
+    Vf[i] = get_volume_factor(dLvals[i])
+
+plt.plot(dLvals, Vf)
+plt.show()
 
 def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
     """
@@ -489,6 +595,7 @@ f2dL = h5.File(opts.datafilename2, 'r')
 #f2dL = h5.File('/home/jxs1805/Research/CITm1dL/PEfiles/Final_noncosmo_GWTC3_dL_datafile.h5', 'r')
 d2 = f2dL['randdata']
 
+#get medians from PE files directly
 medianlist1 = fm1['initialdata/original_mean'][...]
 medianlist2 = f2dL['initialdata/original_mean'][...]
 
@@ -562,6 +669,8 @@ Npoints = opts.Npoints #200 bydefault
 p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
 p2grid = np.linspace(ymin, ymax, 150) #here we are using 150 points
 
+########### This is crucial for  N D analysis to use indexing ='ij' for loops over i j
+
 XX, YY = np.meshgrid(p1grid, p2grid, indexing='ij')
 xy_grid_pts = np.column_stack([XX.ravel(), YY.ravel()])
 
@@ -603,8 +712,8 @@ med_group.create_dataset('alpha', data=erroraALP)
 med_group.create_dataset('bwx', data=bwx)
 med_group.create_dataset('bwy', data=bwy)
 med_group.create_dataset('kde', data=errorkdeval)
-frateh5.create_dataset('pdet2D', data=pdet2D.T)
-frateh5.create_dataset('pdet2Dwithcap', data=capped_pdet2D.T)
+frateh5.create_dataset('pdet2D', data=pdet2D)
+frateh5.create_dataset('pdet2Dwithcap', data=capped_pdet2D)
 #STEP IV Iterative reweighting main method: saving data make final plots average of 1000 KDEs/Rates/bwd
 Total_Iterations = int(opts.NIterations)
 discard = int(opts.buffer_start)   # how many iterations to discard default =5
@@ -652,7 +761,7 @@ for i in range(Total_Iterations + discard):
     frateh5.flush()
     if opts.fpopchoice == 'rate':
         current_kdeval = current_kdeval.reshape(XX.shape)
-        current_rateval = len(rwsamples)*current_kdeval/capped_pdet2D.T
+        current_rateval = len(rwsamples)*current_kdeval/capped_pdet2D
         iter2Drate_list.append(current_rateval)
 
     if i > 1 and i%Nbuffer==0:
@@ -673,6 +782,15 @@ u_plot.bandwidth_correlation(iterbwxlist, number_corr=discard, error=0.02,  path
 u_plot.bandwidth_correlation(iterbwylist, number_corr=discard, error=0.02,  pathplot=opts.pathplot+'bwy_')
 u_plot.bandwidth_correlation(iteralplist, number_corr=discard,  error=0.02, param='alpha',pathplot=opts.pathplot, log=False)
 ########################### One D rate pltos with correct Units of comoving Volume 
+#we need to get correct units rate
+#testing it
+volume_factor1D = np.zeros(len(p2grid))
+for i, dLval in enumerate(p2grid):
+    volume_factor1D[i] = get_volume_factor(dLval)
+
+XX, Volume_factor2D = np.meshgrid(p1grid, volume_factor1D, indexing='ij')
+Rate_median  = np.percentile(iter2Drate_list[discard:], 50, axis=0)/Volume_factor2D
+u_plot.special_plot_rate(meanxi1, meanxi2, XX, YY, capped_pdet2D, Rate_median, save_name="Special_pdetcontourlines_on_combined_average_Rate1000Iteration.png", pathplot='./')
 #STEP V: plot rate(m1) with error bars  (90th percentile 5th-95th percentile)
 rate_lnm1dLmed = np.percentile(iter2Drate_list[discard:], 50., axis=0)
 rate_lnm1dL_5 = np.percentile(iter2Drate_list[discard:], 5., axis=0)
@@ -689,7 +807,7 @@ for plottitle in ['offset', 'median']:
         color = colormap(norm(zarray[ik]))
         closest_index = np.argmin(np.abs(YY - val))
         fixed_dL_value = YY.flat[closest_index]
-        volume_factor = get_dVdz_factor(fixed_dL_value)
+        volume_factor = get_volume_factor(fixed_dL_value)
         indices = np.isclose(YY, fixed_dL_value)
         # Extract the slice of rate_lnm1dL for the specified dL
         rate_lnm1_slice50 = rate_lnm1dLmed[indices]
