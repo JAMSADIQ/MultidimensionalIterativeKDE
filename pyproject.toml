@@ -29,10 +29,12 @@ classifiers = [
 ]
 
 dependencies = [
+    "KDEpy",
     "numpy >= 1.26.4",
     "scipy >= 1.13.1",
     "matplotlib >= 3.9.0",
     "h5py",
+    "json",
     "astropy >= 5.1",
     ]
 
