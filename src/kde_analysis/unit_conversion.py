@@ -127,7 +127,7 @@ def get_volume_factor(dLMpc):
     precomputed = precompute_cosmology_factors(z_at_dL, dL_Mpc=dLMpc)
     ddL_dz = get_dDL_dz_factor(z_at_dL, precomputed)
     dVc_dz = get_dVc_dz_factor(z_at_dL, precomputed)
-    factor_time_det_frame = 1.0 #+ z_at_dL
+    factor_time_det_frame = 1.0 + z_at_dL
     return dVc_dz / ddL_dz / factor_time_det_frame
 
 def get_dVcdz_from_comoving_volume(dLMpc):
@@ -141,25 +141,28 @@ def get_dVcdz_from_comoving_volume(dLMpc):
 
 
 #testing it
-dLvals = np.linspace(100, 8000, 100)
-Vf = np.zeros(len(dLvals))
-for i in range(len(Vf)):
-    Vf[i] = get_volume_factor(dLvals[i])
+def plot_function():
+    dLvals = np.linspace(100, 8000, 100)
+    Vf = np.zeros(len(dLvals))
+    for i in range(len(Vf)):
+        Vf[i] = get_volume_factor(dLvals[i])
 
-plt.plot(dLvals, Vf)
-plt.xlabel(r"$d_L$[Mpc]")
-plt.ylabel(r"$\mathrm{Volume factor Gpc}^3-\mathrm{yr}$")
-plt.tight_layout()
-plt.show()
-m1vals = np.logspace(np.log10(5), np.log10(105), 150)
-xx, yy = np.meshgrid(m1vals, dLvals, indexing='ij')
-xx, Vf2D = np.meshgrid(m1vals, Vf, indexing='ij')
-plt.contourf(xx, yy, Vf2D, cmap='viridis', norm=LogNorm())
-plt.colorbar(label=r'$\mathrm{Volume factor Gpc3-yr}$')
-plt.contour(xx, yy, Vf2D, colors='white', linestyles='dashed',  norm=LogNorm())
-plt.xlabel(r'$m_{1, source} [M_\odot]$', fontsize=20)
-plt.ylabel(r'$d_L [Mpc]$', fontsize=20)
-plt.loglog()
-plt.tight_layout()
-plt.show()
+    plt.plot(dLvals, Vf)
+    plt.xlabel(r"$d_L$[Mpc]")
+    plt.ylabel(r"$\mathrm{Volume factor Gpc}^3-\mathrm{yr}$")
+    plt.tight_layout()
+    m1vals = np.logspace(np.log10(5), np.log10(105), 150)
+    xx, yy = np.meshgrid(m1vals, dLvals, indexing='ij')
+    xx, Vf2D = np.meshgrid(m1vals, Vf, indexing='ij')
+    plt.figure()
+    plt.contourf(xx, yy, Vf2D, cmap='viridis', norm=LogNorm())
+    plt.colorbar(label=r'$\mathrm{Volume factor Gpc3-yr}$')
+    plt.contour(xx, yy, Vf2D, colors='white', linestyles='dashed',  norm=LogNorm())
+    plt.xlabel(r'$m_{1, source} [M_\odot]$', fontsize=20)
+    plt.ylabel(r'$d_L [Mpc]$', fontsize=20)
+    #plt.loglog()
+    plt.tight_layout()
+    plt.show()
 
+if __name__ == "__main__":
+    plot_function()
