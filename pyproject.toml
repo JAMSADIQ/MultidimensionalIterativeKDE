@@ -1,0 +1,41 @@
+[build-system]
+requires = [
+    "oldest-supported-numpy",
+    "setuptools>=42",
+    "wheel",
+    "build",
+    ]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ['gw_pop']
+
+[project]
+name = "gw_pop"
+version = "0.0.1"
+authors = [
+  { name="Jam Sadiq", email="jamlucky.qau@gmail.com" }
+]
+description = "Iterative  reweighting kde for population analysis of binary black holes observed via gravitational waves"
+keywords = ['gravitational waves', 'selection effects', 'population', 'inference', 'compact binary mergers']
+readme = "README.md"
+requires-python = ">=3."
+classifiers = [
+    "Programming Language :: Python :: 3.9",
+    "License :: OSI Approved :: GNU License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Intended Audience :: Science/Research",
+]
+
+dependencies = [
+    "numpy >= 1.26.4",
+    "scipy >= 1.13.1",
+    "matplotlib >= 3.9.0",
+    "h5py",
+    "astropy >= 5.1",
+    ]
+
+[project.urls]
+Repository = "https://github.com/JAMSADIQ/MultidimensionalIterativeKDE.git"
+Issues = "https://github.com/JAMSADIQ/MultidimensionalIterativeKDE.git/issues"
