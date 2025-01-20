@@ -778,13 +778,12 @@ def get_dVcdz_factor(dLMpc):
 
 
 #testing it
-dLvals = np.linspace(100, 8000, 100)
-volume_factor1D = np.zeros(len(dLvals))
-for i in range(len(Vf)):
-    volume_factor1D[i] = get_volume_factor(dLvals[i])
+volume_factor1D = np.zeros(len(dL_grid))
+for i, dLval in enumerate(dL_grid):
+    volume_factor1D[i] = get_volume_factor(dLval)
 
 
-XX, Volume_factor2D = np.meshgrid(m1_src_grid, volume_factor1D, indexing='ij')
+xx, Volume_factor2D = np.meshgrid(m1_src_grid, volume_factor1D, indexing='ij')
 Rate_median  = np.percentile(iter2Drate_list[discard:], 50, axis=0)/Volume_factor2D
 u_plot.special_plot_rate(meanxi1, meanxi2, XX, YY, capped_pdet2D, Rate_median, save_name="Special_pdetcontourlines_on_combined_average_Rate1000Iteration.png", pathplot='./')
 #STEP V: plot rate(m1) with error bars  (90th percentile 5th-95th percentile)
