@@ -721,8 +721,8 @@ def precompute_cosmology_factors(z, dL_Mpc=None):
     - luminosity_distance: D_L in Mpc (if dL_Mpc provided)
     """
     factors = {}
-    factors["comoving_distance"] = comoving_distance(z, H0, Omega_m)
-    factors["dDc_dz"] = comoving_distance_derivative(z, H0, Omega_m)
+    factors["comoving_distance"] = comoving_distance(z, H0, omega_m)
+    factors["dDc_dz"] = comoving_distance_derivative(z, H0, omega_m)
     if dL_Mpc is not None:
         factors["luminosity_distance"] = dL_Mpc
     return factors
