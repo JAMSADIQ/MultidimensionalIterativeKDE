@@ -180,7 +180,7 @@ def prior_factor_function(samples, redshift_vals, dl_prior_power, redshift_prior
         np.ndarray: Prior factor for each sample, computed as 1 / (dL^power * (1+z)^power).
     """
     if samples.shape[1] != 3:
-        raise ValueError("Samples array must have exactly two columns: [m1, dL].")
+        raise ValueError("Samples array must have exactly three columns: [m1, m2, dL].")
 
     if len(redshift_vals) != len(samples):
         raise ValueError("Length of redshifts must match the number of samples.")
@@ -224,18 +224,6 @@ def get_random_sample(original_samples, bootstrap='poisson'):
         reweighted_sample = rng.choice(original_samples)
     return reweighted_sample
 
-
-
-def apply_max_cap_function(pdet_list, max_pdet_cap=0.1):
-  """Applies   max(0.1, pdet)
-  function to each element in the given list.
-  Returns:
-    A new list containing the results of applying the function to each element.
-  """
-  result = []
-  for pdet in pdet_list:
-    result.append(max(max_pdet_cap, pdet))
-  return np.array(result)
 
 def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function,  prior_factor_kwargs=None, max_pdet_cap=0.1):
     """
@@ -286,7 +274,7 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
         prior_factor_kwargs = {}
 
     # Evaluate the KDE and apply the maximum detection probability cap
-    fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / apply_max_cap_function(pdet_vals, max_pdet_cap)
+    fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / np.maximum(pdet_vals, max_pdet_cap)
 
     # Adjust probabilities based on the prior factor
     frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals, **prior_factor_kwargs) 
@@ -353,7 +341,7 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals,
         prior_factor_kwargs = {}
 
     # Compute KDE probabilities divide by regularized pdetvals
-    kde_by_pdet = meanKDEevent/apply_max_cap_function(pdet_vals, max_pdet_cap)
+    kde_by_pdet = meanKDEevent/np.maximum(pdet_vals, max_pdet_cap)
 
     # Adjust probabilities based on the prior factor
     kde_by_pdet  *= prior_factor(sample, redshiftvals, **prior_factor_kwargs)
