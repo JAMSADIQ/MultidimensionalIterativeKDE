@@ -5,7 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
 import matplotlib.colors as colors
 from matplotlib import cm
 import matplotlib.ticker as ticker
