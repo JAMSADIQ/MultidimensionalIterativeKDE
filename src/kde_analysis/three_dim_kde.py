@@ -423,7 +423,7 @@ for k in d1.keys():
         m2det_values = d2[k][...]*(1.0 + dz[k][...])
         d_Lvalues = d3[k][...]
         #clean data
-        m1_values, d_Lvalues, correct_indices =  preprocess_data(injection_m1, injection_dL, m_values, d_Lvalues, num_bins=10)
+        m1_values, d_Lvalues, correct_indices =  preprocess_data(injection_m1, injection_dL, m1_values, d_Lvalues, num_bins=10)
 
         m2_values = m2_values[correct_indices]
         m1det_values = m1det_values[correct_indices]
