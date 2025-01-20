@@ -90,6 +90,20 @@ omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
 c = 299792458.0/1000.0  #km/s
 
+def get_mass_in_detector_frame(dL_Mpc, mass):
+    """
+    Compute the redshift corresponding to a luminosity distance.
+    and get detector frame mass
+    Args:
+        dL_Mpc (float/array): Luminosity distance in megaparsecs (Mpc).
+        mass (float/array): source frame mass.
+
+    Returns:
+        float/array: Corresponding detector frame mass
+    """
+    zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc).value
+    mdet = mass*(1.0 + zcosmo)
+    return mdet
 
 def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
     """
@@ -669,22 +683,6 @@ u_plot.bandwidth_correlation(iteralplist, number_corr=discard,  error=0.02, para
 ### below we do in postprocessing of data we have from the run
 ########################### One D rate pltos with correct Units of comoving Volume 
 #we need to get correct units rate
-#testing it
-def get_mass_in_detector_frame(dL_Mpc, mass):
-    """
-    Compute the redshift corresponding to a luminosity distance.
-    and get detector frame mass
-    Args:
-        dL_Mpc (float/array): Luminosity distance in megaparsecs (Mpc).
-        mass (float/array): source frame mass.
-
-    Returns:
-        float/array: Corresponding detector frame mass
-    """
-    zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc).value
-    mdet = mass*(1.0 + zcosmo)
-    return mdet
-
 #### For conversion of units dR/dm1dL to dR/dm1dVc = dR/dm1dL*(dL/dz)/(dVc/dz) 
 #Based on Hogg 1996
 def hubble_parameter(z, H0, Omega_m):
