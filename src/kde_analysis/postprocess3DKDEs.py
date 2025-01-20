@@ -281,7 +281,7 @@ def get_kdes_for_fixedDL(dLval, savefilename):
 
 def get_kdes_for_fixedm2(m2value, savefilename):
     m2_src_grid = np.array([m2value])
-    savehf  =  h5.File((savefilename+'_fixed_m2{0}.hdf5'.format(m2value), 'w')
+    savehf  =  h5.File(savefilename+'_fixed_m2{0}.hdf5'.format(m2value), 'w')
     XX, YY, ZZ = np.meshgrid(m1_src_grid, m2_src_grid, dL_grid, indexing='ij')
     eval_samples = np.column_stack([XX.ravel(), YY.ravel(), ZZ.ravel()])
     #for pdet we need mass in detector  frame
