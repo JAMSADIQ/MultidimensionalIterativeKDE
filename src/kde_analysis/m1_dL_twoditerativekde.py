@@ -739,7 +739,7 @@ def get_dDL_dz_factor(z_at_dL, precomputed=None):
     dDc_dz = precomputed["dDc_dz"]
     return Dc + (1 + z_at_dL) * dDc_dz
 
-def get_dVc_dz_factor(z_at_dL):
+def get_dVc_dz_factor(z_at_dL, precomputed=None):
     """
     Compute d(V_c)/dz in Gpc^3 units using precomputed cosmology factors.
     return dVc/dz in Gpc^3 units
