@@ -333,23 +333,30 @@ def histogram_datalist(datalist, dataname='bw',  pathplot='./', Iternumber=1):
     return 0
 
 
-def average2Dkde_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='m2', plottag='Average', dLval=500):
-    volume_factor = get_dVdz_factor(dLval) #one value
+def average2Dkde_m1m2_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='m2', plottag='Average', dLval=500, correct_units=False):
+    if correct_units==True:
+        volume_factor = get_dVdz_factor(dLval) #one value
     sample1, sample2 = m1vals, m2vals
     CI50 = np.percentile(kdelists, 50, axis=0)/volume_factor
     max_density = np.max(CI50)
     max_exp = np.floor(np.log10(max_density))  # Find the highest power of 10 below max_density
-    contourlevels = 10 ** (max_exp - np.arange(4))[::-1]
+    contourlevels = 10 ** (max_exp - np.arange(3))[::-1]
     fig, axl = plt.subplots(1,1,figsize=(8,6))
     p = axl.pcolormesh(XX, YY, CI50, cmap=plt.cm.get_cmap('Purples'), norm=LogNorm(vmin=contourlevels[0], vmax=contourlevels[-1]))
     cbar = plt.colorbar(p, ax= axl)
-    cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}m_2\mathrm{d}dV_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-2}]$',fontsize=18)
+    if plot_label =='Rate':
+        if correct_units==True:
+            cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}m_2\mathrm{d}dV_c [\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-2}]$',fontsize=18)
+        else:
+            cbar.set_label(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m_1\mathrm{d}m_2\mathrm{d}dV_c [\mathrm{Mpc}^{-1}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-2}]$',fontsize=18)
+    else:
+        cbar.set_label(r'$p(m_{1, source}, d_L)$',fontsize=18)
     CS = axl.contour(XX, YY, CI50, colors='black', levels=contourlevels ,linestyles='dashed', linewidths=2, norm=LogNorm(vmin=contourlevels[0], vmax=contourlevels[-1]))
     axl.scatter(sample1, sample2,  marker="+", color="r", s=20)
     axl.scatter(sample2, sample1,  marker="+", color="r", s=20)
     axl.fill_between(np.arange(0, 100), np.arange(0, 100),100 , color='white',alpha=1,zorder=50)
     axl.fill_between(np.arange(0, 50), np.arange(0, 50), 50 , color='white',alpha=1,zorder=100)
-    axl.set_ylim(3, 101)
+    axl.set_ylim(5, 101)
     axl.tick_params(axis="y",direction="in")
     axl.yaxis.tick_right()
     axl.yaxis.set_ticks_position('both')
@@ -360,7 +367,7 @@ def average2Dkde_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titlename
     scale_y = 1#e3
     ticks_y = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x/scale_y))
     axl.yaxis.set_major_formatter(ticks_y)
-    axl.set_xlim(3, 100.1)
+    axl.set_xlim(5, 100.1)
     axl.loglog()
     axl.set_aspect('equal')
     axl.set_title('dL={0:.1f}[Mpc]'.format(dLval))
@@ -377,7 +384,7 @@ def average2DlineardLrate_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', 
     fig, axl = plt.subplots(1,1,figsize=(8,6))
     max_density = np.max(CI50)
     max_exp = np.floor(np.log10(max_density))  # Find the highest power of 10 below max_density
-    contourlevels = 10 ** (max_exp - np.arange(4))[::-1]
+    contourlevels = 10 ** (max_exp - np.arange(3))[::-1]
     p = axl.pcolormesh(XX, YY, CI50, cmap=plt.cm.get_cmap('Purples'), norm=LogNorm(vmin=contourlevels[0], vmax =contourlevels[-1]),  label=r'$p(m_1, d_L)$')
     cbar = plt.colorbar(p, ax= axl)
     if plot_label =='Rate':
