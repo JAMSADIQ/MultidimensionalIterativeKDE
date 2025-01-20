@@ -15,7 +15,7 @@ import json
 import h5py as h5
 import scipy
 import numpy as np
-from scipy.integrate import quad
+from scipy.integrate import quad, simpson
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib import rcParams
 from matplotlib.colors import LogNorm, Normalize
@@ -179,11 +179,11 @@ def IntegrateRm1m2_wrt_m2(m1val, m2val, Ratem1m2):
         y_valid = yval <= xval[xid]  # Only accept points with y <= x
         y_q1 = np.argmin(abs(xval[xid] - yval))  # closest y point to y=x
         rate_vals = kde[y_valid, xid]
-        ratem1[xid] = integrate.simpson(rate_vals, x=yval[y_valid])
+        ratem1[xid] = simpson(rate_vals, x=yval[y_valid])
     for yid, m2 in enumerate(m2val):
         x_valid = xval >= yval[yid]  # Only accept points with y <= x
         rate_vals = kde[x_valid, yid]
-        ratem2[yid] = integrate.simpson(rate_vals,x= xval[x_valid])
+        ratem2[yid] = simpson(rate_vals,x= xval[x_valid])
     return ratem1
 
 #File obtained with 3D iterative KDEs
