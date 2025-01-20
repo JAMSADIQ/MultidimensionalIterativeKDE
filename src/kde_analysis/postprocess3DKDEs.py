@@ -127,7 +127,6 @@ d2 = f2['randdata']
 #f3 = h5.File('Final_noncosmo_GWTC3_dL_datafile.h5', 'r')#dL
 f3 = h5.File(opts.datafilename3, 'r')#dL
 d3 = f3['randdata']
-print(d1.keys())
 medianlist1 = f1['initialdata/original_mean'][...]
 sampleslists2 = []
 medianlist2 = f2['initialdata/original_mean'][...]

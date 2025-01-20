@@ -336,6 +336,8 @@ def histogram_datalist(datalist, dataname='bw',  pathplot='./', Iternumber=1):
 def average2Dkde_m1m2_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='m2', plottag='Average', dLval=500, correct_units=False):
     if correct_units==True:
         volume_factor = get_dVdz_factor(dLval) #one value
+    else:
+        volume_factor = 1.0
     sample1, sample2 = m1vals, m2vals
     CI50 = np.percentile(kdelists, 50, axis=0)/volume_factor
     max_density = np.max(CI50)
