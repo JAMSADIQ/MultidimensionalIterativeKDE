@@ -63,10 +63,12 @@ parser.add_argument('--param2-max', default=100.0, type=float, help='Maximum val
 parser.add_argument('--param3-min', default=200., type=float, help='Minimum value for parameter 3 if it is  dL, else if Xieff use -1')
 parser.add_argument('--param3-max', default=8000., type=float, help='Maximum value for parameter 3 if it is dL else if Xieff  use +1')
 
+parser.add_argument('--discard', default=100, type=int, help=('discard first 100 iterations'))
+parser.add_argument('--NIterations', default=1000, type=int, help='Total number of iterations for the reweighting process.')
+
 
 #plots and saving data
 parser.add_argument('--pathplot', default='./', help='public_html path for plots', type=str)
-parser.add_argument('--pathtag', default='re-weight-bootstrap_', help='public_html path for plots', type=str)
 parser.add_argument('--iterative-result-filename', required=True, help='write a proper name of output hdf files based on analysis', type=str)
 parser.add_argument('--output-filename', default='m1m2mdL3Danalysis_slice_dLoutput-filename', help='write a proper name of output hdf files based on analysis', type=str)
 opts = parser.parse_args()
@@ -112,7 +114,7 @@ emax_fun = 'emax_exp'
 alpha_vary = None
 g = u_pdet.Found_injections(dmid_fun = 'Dmid_mchirp_fdmid_fspin', emax_fun='emax_exp', alpha_vary = None, ini_files = None, thr_far = 1, thr_snr = 10)
 
-
+##################Only medians of m1-m2 and dL needed############
 fz = h5.File(opts.datafilename_redshift, 'r')
 #fz = h5.File('Final_noncosmo_GWTC3_redshift_datafile.h5', 'r')
 dz = fz['randdata']
@@ -141,17 +143,7 @@ meanxi2 = np.array(medianlist2)
 meanxi3 = np.array(medianlist3)
 sample = np.vstack((meanxi1, meanxi2, meanxi3)).T
 
-
-
-def get_sliced_data(xx, yy, kde3D,  dLgrid, dL_sliceval=500):
-    dL_index = np.searchsorted(dLgrid,  dL_sliceval)#500Mpc
-    dL_index_val = dLgrid[dL_index]
-    KDE_slice = kde3D[:, :, dL_index]  # Sliced values of F at the chosen x3
-    #Rate_slice = rate3D[:, :, dL_index]  # Sliced values of F at the chosen x3
-    M1_slice, M2_slice = xx[:, :, dL_index], yy[:, :, dL_index]  
-    return M1_slice, M2_slice, KDE_slice, Rate_slice
-
-####### to get KDEs at fixed dL or m2=10/35 slice  maybe use another script
+####### to get KDEs we need eval points
 if opts.m1_min is not None and opts.m1_max is not None:
     xmin, xmax = opts.m1_min, opts.m1_max
 else:
@@ -167,6 +159,7 @@ if opts.param3_min is not None and opts.param3_max is not None:
 else:
     zmin, zmax = np.min(flat_samples3) , np.max(flat_samples3)
 
+# can use opts but for now using fixed
 xmin, xmax = 5, 105  #m1
 ymin, ymax = 5, 105 #m2
 zmin, zmax = 200, 8000 #dL
@@ -193,18 +186,17 @@ def IntegrateRm1m2_wrt_m2(m1val, m2val, Ratem1m2):
         ratem2[yid] = integrate.simpson(rate_vals,x= xval[x_valid])
     return ratem1
 
-#STEP I : get the data from iterative reweighting results kde params/reweighting samples
+#File obtained with 3D iterative KDEs
 hdf_file = opts.iterative_result_filename# Your HDF5 file path
 hdf = h5.File(hdf_file, 'r')
-
-#Now for fixed dL we need grid at fix dL note we are not use volume conversion for now 
-
+Total_Iterations = int(opts.NIterations)
+discard = int(opts.discard)
 def get_kdes_for_fixedDL(dLval, savefilename):
     """
-    1: construct an eval-points grid
-       simulteneously grid for PDET  for mass in detector frame
-
+    for fixed dL eval KDEs using iterative results 
+    and save data 
     """
+    #save data of KDE (all iterations) and PDET  at eval points  
     savehf  =  h5.File(savefilename+'_fixed_dL{0}.hdf5'.format(dLval), 'w')
     p3grid = np.array([dLval])
     m1_det_grid = get_mass_indetector_frame(dLval, m1_src_grid)
@@ -226,7 +218,7 @@ def get_kdes_for_fixedDL(dLval, savefilename):
     kde_list = []
     rate_list = []
     rate1Dlist = []
-    for i in range(1100):#fix this as this can change
+    for i in range(Total_Iterations+discard):#fix this as this can change
         iteration_name = f'iteration_{i}'
         if iteration_name not in hdf:
             print(f"Iteration {i} not found in file.")
@@ -268,12 +260,12 @@ def get_kdes_for_fixedDL(dLval, savefilename):
     savehf.close()
     kde_array = np.array(kde_list)  #Shape:(num_iter, num_eval_pts)
     rate_array = np.array(rate_list)
-    u_plot.average2Dkde_m1m2_plot(meanxi1, meanxi2, m1_dLslice, m2_dLslice, kde_list[100:], pathplot=opts.pathplot, titlename=1001, plot_label='KDE', x_label='m1', y_label='m2', plottag='Combined_all_', dLval=dLval, correct_units=False)
-    u_plot.average2Dkde_m1m2_plot(meanxi1, meanxi2, m1_dLslice, m2_dLslice, rate_list[100:], pathplot=opts.pathplot, titlename=1001, plot_label='Rate', x_label='m1', y_label='m2', plottag='Combined_all_', dLval=dLval, correct_units=False)
+    u_plot.average2Dkde_m1m2_plot(meanxi1, meanxi2, m1_dLslice, m2_dLslice, kde_list[discard:], pathplot=opts.pathplot, titlename=1001, plot_label='KDE', x_label='m1', y_label='m2', plottag='Combined_all_', dLval=dLval, correct_units=False)
+    u_plot.average2Dkde_m1m2_plot(meanxi1, meanxi2, m1_dLslice, m2_dLslice, rate_list[discard:], pathplot=opts.pathplot, titlename=1001, plot_label='Rate', x_label='m1', y_label='m2', plottag='Combined_all_', dLval=dLval, correct_units=False)
    # we also want to get oneD integrate over m2 with removing m2>m1 vals and get 5th, 95th and50th percentile of those
-    rate_density = np.percentile(rate1Dlist[100:], 50.,  axis=0)
-    rate_density95 = np.percentile(rate1Dlist[100:], 95., axis=0)
-    rate_density5 = np.percentile(rate1Dlist[100:], 5., axis=0)
+    rate_density = np.percentile(rate1Dlist[discard:], 50.,  axis=0)
+    rate_density95 = np.percentile(rate1Dlist[discard:], 95., axis=0)
+    rate_density5 = np.percentile(rate1Dlist[discard:], 5., axis=0)
     plt.figure()
     plt.plot(m1_src_grid, rate_density, 'k',  lw=2.5)
     plt.plot(m1_src_grid, rate_density5, 'r', ls='--' , lw=1.5)
@@ -305,12 +297,13 @@ def get_kdes_for_fixedm2(m2value, savefilename):
     savehf.create_dataset('xx2d', data=m1_slice)
     savehf.create_dataset('yy2d', data=dL_slice)
     savehf.create_dataset('PDET2Dfiltered01', data=PDETfilter)
+    u_plot.plot_pdet2D(m1_slice, dL_slice, PDETfilter, Maxpdet=0.1, pathplot=opts.pathplot, show_plot=False)
     kde_list = []
     kdev_list = []
     rate_list = []
     ratev_list = []
     rate1Dlist = []
-    for i in range(1100):#fix this as this can change
+    for i in range(Total_Iterations+discard):#fix this as this can change
         iteration_name = f'iteration_{i}'
         if iteration_name not in hdf:
             print(f"Iteration {i} not found in file.")
@@ -347,8 +340,8 @@ def get_kdes_for_fixedm2(m2value, savefilename):
         kde_list.append(KDE_slice)
         rate_list.append(current_rateval)
     savehf.close()
-    u_plot.average2DlineardLrate_plot(meanxi1, meanxi3, m1_slice, dL_slice, kde_list[100:], pathplot='./', titlename=1, plot_label='KDE', x_label='m1', y_label='dL', show_plot=False)
-    u_plot.average2DlineardLrate_plot(meanxi1, meanxi3, m1_slice, dL_slice, rate_list[100:], pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='dL', show_plot=False)
+    u_plot.average2DlineardLrate_plot(meanxi1, meanxi3, m1_slice, dL_slice, kde_list[discard:], pathplot='./', titlename=1, plot_label='KDE', x_label='m1', y_label='dL', show_plot=False)
+    u_plot.average2DlineardLrate_plot(meanxi1, meanxi3, m1_slice, dL_slice, rate_list[discard:], pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='dL', show_plot=False)
 
 for dLvalue  in [300]:#, 500, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3500, 4000, 4500, 5000]:
     get_kdes_for_fixedDL(dLvalue, opts.output_filename)
