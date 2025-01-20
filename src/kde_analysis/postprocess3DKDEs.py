@@ -200,7 +200,7 @@ def get_kdes_for_fixedDL(dLval, savefilename):
     savehf  =  h5.File(savefilename+'_fixed_dL{0}.hdf5'.format(dLval), 'w')
     p3grid = np.array([dLval])
     m1_det_grid = get_mass_indetector_frame(dLval, m1_src_grid)
-    m12_det_grid = get_mass_indetector_frame(dLval, m2_src_grid)
+    m2_det_grid = get_mass_indetector_frame(dLval, m2_src_grid)
     XX, YY, ZZ = np.meshgrid(m1_src_grid, m2_src_grid, p3grid, indexing='ij')
     eval_samples = np.column_stack([XX.ravel(), YY.ravel(), ZZ.ravel()])
     #for detector frame mass
