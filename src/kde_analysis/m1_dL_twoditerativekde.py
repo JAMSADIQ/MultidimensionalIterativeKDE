@@ -594,7 +594,7 @@ capped_pdet2D = np.maximum(pdet2D, opts.max_pdet)
 u_plot.plot_pdet2D(XX, YY, pdet2D, Maxpdet=opts.max_pdet, pathplot=opts.pathplot, show_plot=False)
 
 #get rates
-current_rateval = len(meanxi1)*ZZ/capped_pdet2D.T
+current_rateval = len(meanxi1)*ZZ/capped_pdet2D
 u_plot.new2DKDE(XX, YY,  current_rateval, meanxi1, meanxi2 , saveplot=True,plot_label='Rate', title='median', show_plot=False, pathplot=opts.pathplot)
 #save data in hdf5 file
 frateh5 = h5.File(opts.output_filename+'dL2priorfactor_uniform_prior_mass_2Drate_m1'+opts.parameter2+'max_pdet_cap_'+str(opts.max_pdet)+'min_bw_dL'+str(opts.min_bw_dLdim)+'.hdf5', 'w')
