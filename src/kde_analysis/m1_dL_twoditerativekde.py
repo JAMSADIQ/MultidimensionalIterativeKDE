@@ -90,123 +90,6 @@ omega_m = 0.3065
 cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
 c = 299792458.0/1000.0  #km/s
 
-def get_mass_in_detector_frame(dL_Mpc, mass):
-    """
-    Compute the redshift corresponding to a luminosity distance.
-    and get detector frame mass
-    Args:
-        dL_Mpc (float/array): Luminosity distance in megaparsecs (Mpc).
-        mass (float/array): source frame mass.
-
-    Returns:
-        float/array: Corresponding detector frame mass
-    """
-    zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc).value
-    mdet = mass*(1.0 + zcosmo)
-    return mdet
-
-#### For conversion of units dR/dm1dL to dR/dm1dVc = dR/dm1dL*(dL/dz)/(dVc/dz) 
-#Based on Hogg 1996
-def hubble_parameter(z, H0, Omega_m):
-    """
-    Calculate the Hubble parameter H(z) for a flat Lambda-CDM cosmology.
-    https://ned.ipac.caltech.edu/level5/Hogg/Hogg4.html
-    """
-    Omega_Lambda = 1.0 - Omega_m
-    return H0 * np.sqrt(Omega_m * (1 + z)**3 + Omega_Lambda)
-
-def comoving_distance(z, H0, Omega_m):
-    """
-    Compute the comoving distance D_c(z) in Mpc.
-    we can also use astropy
-    astropy_val = cosmo.comoving_distance(z)
-    """
-    astropy_val = cosmo.comoving_distance(z)
-    integrand = lambda z_prime: c / hubble_parameter(z_prime, H0, Omega_m)
-    D_c, _ = quad(integrand, 0, z)
-    return D_c
-
-
-def comoving_distance_derivative(z, H0, Omega_m):
-    """
-    Compute the derivative of comoving distance dD_c/dz in Mpc.
-    """
-    return c / hubble_parameter(z, H0, Omega_m)
-
-
-def precompute_cosmology_factors(z, dL_Mpc=None):
-    """
-    Precompute commonly used cosmology values to avoid redundant calculations.
-    Returns a dictionary containing:
-    - comoving_distance: D_c in Mpc
-    - dDc_dz: d(D_c)/dz in Mpc
-    - luminosity_distance: D_L in Mpc (if dL_Mpc provided)
-    """
-    factors = {}
-    factors["comoving_distance"] = comoving_distance(z, H0, Omega_m)
-    factors["dDc_dz"] = comoving_distance_derivative(z, H0, Omega_m)
-    if dL_Mpc is not None:
-        factors["luminosity_distance"] = dL_Mpc
-    return factors
-
-def get_dDL_dz_factor(z_at_dL, precomputed=None):
-    """
-    Compute d(D_L)/dz using precomputed cosmology factors if available.
-    given redshift 
-    from notes: dL = (1+z)*Dc
-    """
-    if precomputed is None:
-        precomputed = precompute_cosmology_factors(z_at_dL)
-    Dc = precomputed["comoving_distance"]
-    dDc_dz = precomputed["dDc_dz"]
-    return Dc + (1 + z_at_dL) * dDc_dz
-
-def get_dVc_dz_factor(z_at_dL):
-    """
-    Compute d(V_c)/dz in Gpc^3 units using precomputed cosmology factors.
-    return dVc/dz in Gpc^3 units
-    Vc = 4pi/3 Dc^3 (Dc = comoving disatnce)
-    dVc/dz = 4pi Dc  dDc/dz
-    """
-    if precomputed is None:
-        precomputed = precompute_cosmology_factors(z_at_dL)
-    Dc = precomputed["comoving_distance"]
-    dDc_dz = precomputed["dDc_dz"]
-    dVcdz = 4 * np.pi * Dc**2 * dDc_dz
-    return dVcdz / 1e9  # Convert to Gpc^3
-
-
-def get_volume_factor(dLMpc):
-    """
-    Compute the volume factor for a given luminosity distance in Mpc.
-    result is in Gpc^3-yr
-    """
-    z_at_dL = z_at_value(cosmo.luminosity_distance, dLMpc * u.Mpc).value
-    precomputed = precompute_cosmology_factors(z_at_dL, dL_Mpc=dLMpc)
-    ddL_dz = get_dDL_dz_factor(z_at_dL, precomputed)
-    dVc_dz = get_dVc_dz_factor(z_at_dL, precomputed)
-    #need to check this factor
-    factor_time_det_frame = 1.0 + z_at_dL
-    return dVc_dz / ddL_dz / factor_time_det_frame
-
-def get_dVcdz_factor(dLMpc):
-    """
-    only works for float value not for arrays
-    """
-    z_at_dL = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
-    dV_dMpc_cube = 4.0 * np.pi * cosmo.differential_comoving_volume(z_at_dL)
-    dVc_dzGpc3 = dV_dMpc_cube.to(u.Gpc**3 / u.sr).value
-    return dVc_dzGpc3
-
-
-#testing it
-dLvals = np.linspace(100, 8000, 100)
-Vf = np.zeros(len(dLvals))
-for i in range(len(Vf)):
-    Vf[i] = get_volume_factor(dLvals[i])
-
-plt.plot(dLvals, Vf)
-plt.show()
 
 def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
     """
@@ -666,12 +549,12 @@ else:
 ymin, ymax = 200, 8000
 Npoints = opts.Npoints #200 bydefault
 #we need log space points for m1, linear in dL
-p1grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
-p2grid = np.linspace(ymin, ymax, 150) #here we are using 150 points
+m1_src_grid = np.logspace(np.log10(xmin), np.log10(xmax), Npoints)
+dL_grid = np.linspace(ymin, ymax, 150) #here we are using 150 points
 
 ########### This is crucial for  N D analysis to use indexing ='ij' for loops over i j
 
-XX, YY = np.meshgrid(p1grid, p2grid, indexing='ij')
+XX, YY = np.meshgrid(m1_src_grid, dL_grid, indexing='ij')
 xy_grid_pts = np.column_stack([XX.ravel(), YY.ravel()])
 
 sample = np.vstack((meanxi1, meanxi2)).T
@@ -686,10 +569,10 @@ u_plot.new2DKDE(XX, YY,  ZZ,  meanxi1, meanxi2, saveplot=True,  show_plot=False,
 #STEP III: get pdet on same grid as KDE eval and plot contours of pdet
 # try on top of scatter of m1-dL vals
 if opts.fpopchoice == 'rate':
-    pdet2D = np.zeros((len(p1grid), len(p2grid)))
+    pdet2D = np.zeros((len(m1_src_grid), len(dL_grid)))
     #convert masses im detector frame to make sure we are correctly computing pdet on same masses as KDE grid masses
-    for i, m1src in enumerate(p1grid):
-        for j, dLval in enumerate(p2grid):
+    for i, m1src in enumerate(m1_src_grid):
+        for j, dLval in enumerate(dL_grid):
             m1det = get_mass_in_detector_frame(dLval, m1src)
             pdet2D[i, j] = u_pdet.pdet_of_m1_dL_powerlawm2(m1det, m2min, dLval, beta=index_powerlaw_m2, classcall=g)
 
@@ -731,7 +614,7 @@ for i in range(Total_Iterations + discard):
     print("i - ", i)
     if i >= discard + Nbuffer:
         buffer_kdes_mean = np.mean(iterkde_list[-Nbuffer:], axis=0)
-        buffer_interp = RegularGridInterpolator((p1grid, p2grid), buffer_kdes_mean.T, bounds_error=False, fill_value=0.0)
+        buffer_interp = RegularGridInterpolator((m1_src_grid, dL_grid), buffer_kdes_mean.T, bounds_error=False, fill_value=0.0)
     rwsamples = []
     for samplem1, samplem2, redshiftvals, pdet_k in zip(sampleslists1, sampleslists2, redshift_lists, pdetlists):
         samples= np.vstack((samplem1, samplem2)).T
@@ -781,14 +664,129 @@ u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iter2Drate_list[disc
 u_plot.bandwidth_correlation(iterbwxlist, number_corr=discard, error=0.02,  pathplot=opts.pathplot+'bwx_')
 u_plot.bandwidth_correlation(iterbwylist, number_corr=discard, error=0.02,  pathplot=opts.pathplot+'bwy_')
 u_plot.bandwidth_correlation(iteralplist, number_corr=discard,  error=0.02, param='alpha',pathplot=opts.pathplot, log=False)
+
+#quit()
+### below we do in postprocessing of data we have from the run
 ########################### One D rate pltos with correct Units of comoving Volume 
 #we need to get correct units rate
 #testing it
-volume_factor1D = np.zeros(len(p2grid))
-for i, dLval in enumerate(p2grid):
-    volume_factor1D[i] = get_volume_factor(dLval)
+def get_mass_in_detector_frame(dL_Mpc, mass):
+    """
+    Compute the redshift corresponding to a luminosity distance.
+    and get detector frame mass
+    Args:
+        dL_Mpc (float/array): Luminosity distance in megaparsecs (Mpc).
+        mass (float/array): source frame mass.
 
-XX, Volume_factor2D = np.meshgrid(p1grid, volume_factor1D, indexing='ij')
+    Returns:
+        float/array: Corresponding detector frame mass
+    """
+    zcosmo = z_at_value(cosmo.luminosity_distance, dL_Mpc * u.Mpc).value
+    mdet = mass*(1.0 + zcosmo)
+    return mdet
+
+#### For conversion of units dR/dm1dL to dR/dm1dVc = dR/dm1dL*(dL/dz)/(dVc/dz) 
+#Based on Hogg 1996
+def hubble_parameter(z, H0, Omega_m):
+    """
+    Calculate the Hubble parameter H(z) for a flat Lambda-CDM cosmology.
+    https://ned.ipac.caltech.edu/level5/Hogg/Hogg4.html
+    """
+    Omega_Lambda = 1.0 - Omega_m
+    return H0 * np.sqrt(Omega_m * (1 + z)**3 + Omega_Lambda)
+
+def comoving_distance(z, H0, Omega_m):
+    """
+    Compute the comoving distance D_c(z) in Mpc.
+    we can also use astropy
+    astropy_val = cosmo.comoving_distance(z)
+    """
+    astropy_val = cosmo.comoving_distance(z)
+    integrand = lambda z_prime: c / hubble_parameter(z_prime, H0, Omega_m)
+    D_c, _ = quad(integrand, 0, z)
+    return D_c
+
+
+def comoving_distance_derivative(z, H0, Omega_m):
+    """
+    Compute the derivative of comoving distance dD_c/dz in Mpc.
+    """
+    return c / hubble_parameter(z, H0, Omega_m)
+
+
+def precompute_cosmology_factors(z, dL_Mpc=None):
+    """
+    Precompute commonly used cosmology values to avoid redundant calculations.
+    Returns a dictionary containing:
+    - comoving_distance: D_c in Mpc
+    - dDc_dz: d(D_c)/dz in Mpc
+    - luminosity_distance: D_L in Mpc (if dL_Mpc provided)
+    """
+    factors = {}
+    factors["comoving_distance"] = comoving_distance(z, H0, Omega_m)
+    factors["dDc_dz"] = comoving_distance_derivative(z, H0, Omega_m)
+    if dL_Mpc is not None:
+        factors["luminosity_distance"] = dL_Mpc
+    return factors
+
+def get_dDL_dz_factor(z_at_dL, precomputed=None):
+    """
+    Compute d(D_L)/dz using precomputed cosmology factors if available.
+    given redshift 
+    from notes: dL = (1+z)*Dc
+    """
+    if precomputed is None:
+        precomputed = precompute_cosmology_factors(z_at_dL)
+    Dc = precomputed["comoving_distance"]
+    dDc_dz = precomputed["dDc_dz"]
+    return Dc + (1 + z_at_dL) * dDc_dz
+
+def get_dVc_dz_factor(z_at_dL):
+    """
+    Compute d(V_c)/dz in Gpc^3 units using precomputed cosmology factors.
+    return dVc/dz in Gpc^3 units
+    Vc = 4pi/3 Dc^3 (Dc = comoving disatnce)
+    dVc/dz = 4pi Dc  dDc/dz
+    """
+    if precomputed is None:
+        precomputed = precompute_cosmology_factors(z_at_dL)
+    Dc = precomputed["comoving_distance"]
+    dDc_dz = precomputed["dDc_dz"]
+    dVcdz = 4 * np.pi * Dc**2 * dDc_dz
+    return dVcdz / 1e9  # Convert to Gpc^3
+
+
+def get_volume_factor(dLMpc):
+    """
+    Compute the volume factor for a given luminosity distance in Mpc.
+    result is in Gpc^3-yr
+    """
+    z_at_dL = z_at_value(cosmo.luminosity_distance, dLMpc * u.Mpc).value
+    precomputed = precompute_cosmology_factors(z_at_dL, dL_Mpc=dLMpc)
+    ddL_dz = get_dDL_dz_factor(z_at_dL, precomputed)
+    dVc_dz = get_dVc_dz_factor(z_at_dL, precomputed)
+    #need to check this factor
+    factor_time_det_frame = 1.0 + z_at_dL
+    return dVc_dz / ddL_dz / factor_time_det_frame
+
+def get_dVcdz_factor(dLMpc):
+    """
+    only works for float value not for arrays
+    """
+    z_at_dL = z_at_value(cosmo.luminosity_distance, dLMpc*u.Mpc).value
+    dV_dMpc_cube = 4.0 * np.pi * cosmo.differential_comoving_volume(z_at_dL)
+    dVc_dzGpc3 = dV_dMpc_cube.to(u.Gpc**3 / u.sr).value
+    return dVc_dzGpc3
+
+
+#testing it
+dLvals = np.linspace(100, 8000, 100)
+volume_factor1D = np.zeros(len(dLvals))
+for i in range(len(Vf)):
+    volume_factor1D[i] = get_volume_factor(dLvals[i])
+
+
+XX, Volume_factor2D = np.meshgrid(m1_src_grid, volume_factor1D, indexing='ij')
 Rate_median  = np.percentile(iter2Drate_list[discard:], 50, axis=0)/Volume_factor2D
 u_plot.special_plot_rate(meanxi1, meanxi2, XX, YY, capped_pdet2D, Rate_median, save_name="Special_pdetcontourlines_on_combined_average_Rate1000Iteration.png", pathplot='./')
 #STEP V: plot rate(m1) with error bars  (90th percentile 5th-95th percentile)
