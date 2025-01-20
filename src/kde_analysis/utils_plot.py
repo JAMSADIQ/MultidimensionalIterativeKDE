@@ -107,19 +107,50 @@ def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetl
     plt.close()
     return 0
 
-def plot_detection_probability(XX, YY, pdet2Dfilter, levels=[0.1, 0.2,0.3,0.4, 0.5, 0.6, 0.7,0.8, 0.9, 1.0], pathplot='./', save_name='pdetcontourplot.png'):
-    plt.figure(figsize=(10, 7))
-    plt.contourf(XX, YY, pdet2Dfilter, levels=levels, cmap='viridis', norm=Normalize(vmax=1))
-    plt.colorbar(label=r"$p_\mathrm{det}$")
-    plt.contour(XX, YY, pdet2Dfilter, colors='white', linestyles='dashed', levels=levels)
-    plt.xlabel(r"$m_{1,\mathrm{source}}\,[M_\odot]$")
-    plt.ylabel(r"$d_L\,[\mathrm{Mpc}]$")
+
+def plot_pdet2D(XX, YY, pdet2D, Maxpdet=0.1, pathplot='./',  save_name='testpdet2Dpowerlaw_m2_on evalgrid.png' , show_plot=False):
+    """
+    Plots the 2D detection probability (pdet) with contours and saves the figure.
+
+    Args:
+        XX (ndarray): Meshgrid for the x-axis (e.g., source mass).
+        YY (ndarray): Meshgrid for the y-axis (e.g., distance).
+        pdet2D (ndarray): 2D array of detection probabilities.
+        opts (object): Options object containing plot settings (e.g., Maxpdet and pathplot).
+    """
+    plt.figure(figsize=(10, 8))
+
+    # Set contour levels and title based on Maxpdet
+    if  Maxpdet == '0.03':
+        levels = [0.03, 0.1, 0.2, 0.4, 0.5, 0.7, 0.8, 0.9, 1.0]
+        title = r'$p_\mathrm{det}, \,  q^{1.26}, \, \mathrm{with} \, max(0.03, p_\mathrm{det})$'
+    else:
+        levels = [0.1, 0.2, 0.4, 0.5, 0.7, 0.8, 0.9, 1.0]
+        title = r'$p_\mathrm{det}, \,  q^{1.26}, \, \mathrm{with} \, max(0.1, p_\mathrm{det})$'
+
+    # Create filled contour plot
+    plt.contourf(XX, YY, pdet2D, levels=levels, cmap='viridis', norm=Normalize(vmax=1))
+    plt.title(title, fontsize=18)
+
+    # Add colorbar
+    plt.colorbar(label=r'$p_\mathrm{det}$')
+
+    # Add contour lines
+    plt.contour(XX, YY, pdet2D, colors='white', linestyles='dashed', levels=levels[1:])
+
+    # Add labels and scale
+    plt.xlabel(r'$m_{1, source} [M_\odot]$', fontsize=20)
+    plt.ylabel(r'$d_L [Mpc]$', fontsize=20)
     plt.loglog()
-    plt.tight_layout()
-    #plt.title(r"Detection Probability ($p_\mathrm{det}$)")
-    #plt.title(r'$p_\mathrm{det}, \,  q^{1.26}, \, \mathrm{with} \, max(0.1, p_\mathrm{det})$', fontsize=18)
-    plt.savefig(pathplot+save_name)
-    plt.show()
+
+    # Save and close the plot
+    plt.savefig(pathplot + save_name)
+    if show_plot==True:
+        plt.show()
+    plt.close()
+    return 0
+
+
 
 ############################# Resultsplot #####################
 def average2D_m1dL_kde_plot(m1vals, dLvals, XX, YY, kdelists, pathplot='./', titlename=1, plot_label='Rate', x_label='m1', y_label='m2', plottag='Average', dLval=500):
