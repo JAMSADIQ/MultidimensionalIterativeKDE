@@ -403,7 +403,6 @@ d2 = f2['randdata']
 #f3 = h5.File('Final_noncosmo_GWTC3_dL_datafile.h5', 'r')#dL
 f3 = h5.File(opts.datafilename3, 'r')#dL
 d3 = f3['randdata']
-print(d1.keys())
 sampleslists1 = []
 medianlist1 = f1['initialdata/original_mean'][...]
 eventlist = []
@@ -480,7 +479,7 @@ sample = np.vstack((meanxi1, meanxi2, meanxi3)).T
 ######################################################
 ################################################################################
 def get_kde_obj_eval(sample, rescale_arr, alphachoice, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw_dL=0.01):
-    maxRescale_dL = 1.0/maxbw_dL
+    maxRescale_dL = 1.0/minbw_dL
     #Apply m1-m2 symmetry in the samples before fitting
     if mass_symmetry:
         m1 = sample[:, 0]  # First column corresponds to m1

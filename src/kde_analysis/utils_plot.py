@@ -61,7 +61,7 @@ def plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_p
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection='3d')
     # Plot the data with logarithmic color scaling
-    sc = ax.scatter(flat_samples1, flat_samples2, flat_samples3, c=flat_pdetlist, cmap='viridis', s=10, norm=LogNorm(vmin=1e-5, vamx=1))
+    sc = ax.scatter(flat_samples1, flat_samples2, flat_samples3, c=flat_pdetlist, cmap='viridis', s=10, norm=LogNorm(vmin=1e-5, vmax=1))
     plt.colorbar(sc, label=r'$p_\mathrm{det}(m_1, m_2, d_L)$')
 
     # Set axis labels and limits
@@ -77,7 +77,7 @@ def plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_p
     plt.close()
     return 0
 
-def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
+def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetlist, flat_samples_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
     fig, ax1 = plt.subplots(figsize=(8, 6))
     # Scatter plot on the primary axis
     scatter = ax1.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10, cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1))
