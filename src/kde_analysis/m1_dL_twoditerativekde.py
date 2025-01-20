@@ -796,6 +796,7 @@ dLarray = np.array([300, 600 ,900, 1200, 1500, 1800, 2100, 2400, 2700, 3000])
 colormap = plt.cm.magma
 zarray = z_at_value(cosmo.luminosity_distance, dLarray*u.Mpc).value
 y_offset = 0
+norm = Normalize(vmin=zarray.min(), vmax=zarray.max())
 for plottitle in ['offset', 'median']:
     fig, ax = plt.subplots(figsize=(10, 8))
     for ik, val in enumerate(dLarray):
