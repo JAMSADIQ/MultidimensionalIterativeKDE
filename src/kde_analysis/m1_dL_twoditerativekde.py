@@ -628,7 +628,7 @@ for i in range(Total_Iterations + discard):
     print("i - ", i)
     if i >= discard + Nbuffer:
         buffer_kdes_mean = np.mean(iterkde_list[-Nbuffer:], axis=0)
-        buffer_interp = RegularGridInterpolator((m1_src_grid, dL_grid), buffer_kdes_mean.T, bounds_error=False, fill_value=0.0)
+        buffer_interp = RegularGridInterpolator((m1_src_grid, dL_grid), buffer_kdes_mean, bounds_error=False, fill_value=0.0)
     rwsamples = []
     for samplem1, samplem2, redshiftvals, pdet_k in zip(sampleslists1, sampleslists2, redshift_lists, pdetlists):
         samples= np.vstack((samplem1, samplem2)).T
