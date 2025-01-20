@@ -528,12 +528,6 @@ iterbwzlist = []
 iteralplist = []
 #### We want to save data for rate(m1, m2) in HDF file 
 frateh5 = h5.File(opts.output_filename+'max_pdet_cap_'+str(opts.max_pdet)+'min_bw_dL'+str(opts.min_bw_dLdim)+'_optimize_code_test.hdf5', 'a')
-dsetxx = frateh5.create_dataset('data_xx', data=XX)
-dsetxx.attrs['xname']='xx'
-dsetyy = frateh5.create_dataset('data_yy', data=YY)
-dsetyy.attrs['yname']='yy'
-dsetzz = frateh5.create_dataset('data_zz', data=ZZ)
-dsetzz.attrs['zname']='zz'
 
 # Initialize buffer to store last 100 iterations of f(samples) for each event
 samples_per_event =  [len(event_list) for event_list in sampleslists3]
