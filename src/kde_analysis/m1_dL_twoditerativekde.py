@@ -655,7 +655,6 @@ for i in range(Total_Iterations + discard):
     group.create_dataset('bwx', data=bwx)
     group.create_dataset('bwy', data=bwy)
     group.create_dataset('kde', data=current_kdeval)
-    frateh5.flush()
     if opts.fpopchoice == 'rate':
         current_kdeval = current_kdeval.reshape(XX.shape)
         current_rateval = len(rwsamples)*current_kdeval/capped_pdet2D
@@ -670,7 +669,9 @@ for i in range(Total_Iterations + discard):
         u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iterkde_list[-Nbuffer:], pathplot=opts.pathplot, titlename=i, plot_label='KDE', x_label='m1', y_label='dL', show_plot= False)
         if opts.fpopchoice == 'rate':
              u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iter2Drate_list[-Nbuffer:], pathplot=opts.pathplot, titlename=i, plot_label='Rate', x_label='m1', y_label='dL', show_plot= False)
+
 frateh5.close()
+
 u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iterkde_list[discard:], pathplot=opts.pathplot+'allKDEscombined_', titlename=1001, plot_label='KDE', x_label='m1', y_label='dL', show_plot= False)
 u_plot.average2DlineardLrate_plot(meanxi1, meanxi2, XX, YY, iter2Drate_list[discard:], pathplot=opts.pathplot+'allKDEscombined_', titlename=1001, plot_label='Rate', x_label='m1', y_label='dL', show_plot= False)
 
