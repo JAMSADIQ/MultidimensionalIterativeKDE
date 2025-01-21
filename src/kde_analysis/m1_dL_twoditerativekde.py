@@ -786,7 +786,7 @@ for i, dLval in enumerate(dL_grid):
 
 xx, Volume_factor2D = np.meshgrid(m1_src_grid, volume_factor1D, indexing='ij')
 Rate_median  = np.percentile(iter2Drate_list[discard:], 50, axis=0)/Volume_factor2D
-u_plot.special_plot_rate(meanxi1, meanxi2, XX, YY, capped_pdet2D, Rate_median, save_name="Special_pdetcontourlines_on_combined_average_Rate1000Iteration.png", pathplot='./')
+u_plot.special_plot_rate(meanxi1, meanxi2, XX, YY, pdet2D, Rate_median, save_name="combined_Rate1000Iteration_withpdetlines.png", pathplot='./')
 #STEP V: plot rate(m1) with error bars  (90th percentile 5th-95th percentile)
 rate_lnm1dLmed = np.percentile(iter2Drate_list[discard:], 50., axis=0)
 rate_lnm1dL_5 = np.percentile(iter2Drate_list[discard:], 5., axis=0)
