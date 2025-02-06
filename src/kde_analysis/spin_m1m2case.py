@@ -61,11 +61,11 @@ parser.add_argument('--m1-max', default=100.0, type=float, help='Maximum value f
 parser.add_argument('--Npoints', default=200, type=int, help='Number of points for KDE evaluation.')
 parser.add_argument('--param2-min', default=4.95, type=float, help='Minimum value for parameter 2 if it is  m2, else if dL use 10')
 parser.add_argument('--param2-max', default=100.0, type=float, help='Maximum value for parameter 2 if it is m2 else if dL  use 10000')
-parser.add_argument('--param3-min', default=200., type=float, help='Minimum value for parameter 3 if it is  dL, else if Xieff use -1')
-parser.add_argument('--param3-max', default=8000., type=float, help='Maximum value for parameter 3 if it is dL else if Xieff  use +1')
+parser.add_argument('--param3-min', default=-1., type=float, help='Minimum value for parameter 3 if it is  dL, else if Xieff use -1')
+parser.add_argument('--param3-max', default=1., type=float, help='Maximum value for parameter 3 if it is dL else if Xieff  use +1')
 
 # Rescaling factor bounds [bandwidth]
-parser.add_argument('--min-bw-dLdim', default=0.01, type=float, help='Set the minimum bandwidth for the DL dimension. The value must be >= 0.3 for mmain analysis')
+parser.add_argument('--min-bw-Xieffdim', default=0.01, type=float, help='Set the minimum bandwidth for the DL dimension. The value must be >= 0.3 for mmain analysis')
 #EMalgorithm reweighting 
 parser.add_argument('--reweightmethod', default='bufferkdevals', help='Only for gaussian sample shift method: we can reweight samples via buffered kdevals(bufferkdevals) or buffered kdeobjects (bufferkdeobject)', type=str)
 parser.add_argument('--reweight-sample-option', default='reweight', help='choose either "noreweight" or "reweight" if reweight use fpop prob to get reweight sample (one sample for no bootstrap or no or multiple samples for poisson)', type=str)
@@ -79,11 +79,11 @@ parser.add_argument('--NIterations', default=1000, type=int, help='Total Iterati
 #plots and saving data
 parser.add_argument('--pathplot', default='./', help='public_html path for plots', type=str)
 parser.add_argument('--pathtag', default='re-weight-bootstrap_', help='public_html path for plots', type=str)
-parser.add_argument('--output-filename', default='m1m2mdL3Danalysis_', help='write a proper name of output hdf files based on analysis', type=str)
+parser.add_argument('--output-filename', default='m1m2mXieff3Danalysis_', help='write a proper name of output hdf files based on analysis', type=str)
 opts = parser.parse_args()
 #####################################################################
-maxRescale_dLdim = round(1.0/ opts.min_bw_dLdim)
-print(f'max rescal factor in dL dim = {maxRescale_dLdim}')
+maxRescale_Xieffdim = round(1.0/ opts.min_bw_Xieffdim)
+print(f'max rescal factor in Xief dim = {maxRescale_Xieffdim}')
 
 #set the prior factors correctly here before reweighting
 prior_kwargs = {'dl_prior_power': opts.dl_prior_power, 'redshift_prior_power': opts.redshift_prior_power}
@@ -168,7 +168,7 @@ def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
 #this is specific to m1-m2-dL 3D analysis 
 def prior_factor_function(samples, redshift_vals, dl_prior_power, redshift_prior_power):
     """
-    Compute a prior factor for reweighting for dL and masses from redshift to the source frame.
+    Compute a prior factor for reweighting for Xieff and masses from redshift to the source frame.
     For non-cosmo pe files:
     - Use dL^power (distance factor).
     - If the source-frame mass is used, apply (1+z)^power for redshift scaling.
@@ -176,7 +176,7 @@ def prior_factor_function(samples, redshift_vals, dl_prior_power, redshift_prior
     Args:
         samples (np.ndarray): Array of samples with shape (N, 3), where N is the number of samples.
         redshift_vals:  (np.ndarray or list): Redshift values corresponding to the samples.
-        dl_prior_power (float, optional): Power to apply to the dL prior. Default is 2.0.
+        dl_prior_power (float, optional): Power to apply to the Xieff prior. Default is 2.0.
         redshift_prior_power (float, optional): Power to apply to the redshift prior. Default is 2.0
     Returns:
         np.ndarray: Prior factor for each sample, computed as 1 / (dL^power * (1+z)^power).
@@ -408,8 +408,8 @@ d1 = f1['randdata']
 #f2 = h5.File('Final_noncosmo_GWTC3_m2srcdatafile.h5', 'r')#m2
 f2 = h5.File(opts.datafilename2, 'r')#m2
 d2 = f2['randdata']
-#f3 = h5.File('Final_noncosmo_GWTC3_dL_datafile.h5', 'r')#dL
-f3 = h5.File(opts.datafilename3, 'r')#dL
+#f3 = h5.File('Final_noncosmo_GWTC3_dL_datafile.h5', 'r')#Xieff
+f3 = h5.File(opts.datafilename3, 'r')#Xieff
 d3 = f3['randdata']
 sampleslists1 = []
 medianlist1 = f1['initialdata/original_mean'][...]
@@ -438,27 +438,30 @@ for k in d1.keys():
         m2det_values = m2det_values[correct_indices]
         Xieff_values = Xieff_values[correct_indices]
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
-        pdet_values =  u_pdet.get_pdet_m1m2dL(np.array(m1det_values), np.array(m2det_values), np.array(d_Lvalues), classcall=g)
+        pdet_values =  u_pdet.get_pdet_m1m2dL(np.array(m1det_values), np.array(m2det_values), np.array(d_Lvalues), Xieff=np.array(Xieff_values), classcall=g)
         #get bad PDET bad out
     else:
         m1_values = d1[k][...]
         m1det_values = d1[k][...]*(1.0 + dz[k][...])
         m2_values = d2[k][...]
         m2det_values = d2[k][...]*(1.0 + dz[k][...])
-        d_Lvalues = d3[k][...]
+        d_Lvalues = ddL[k][...]
+        Xieff_values = d3[k][...]
+
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
-        pdet_values = u_pdet.get_pdet_m1m2dL(np.array(m1det_values), np.array(m2det_values),np.array(d_Lvalues), classcall=g)    
+        pdet_values = u_pdet.get_pdet_m1m2dL(np.array(m1det_values), np.array(m2det_values),np.array(d_Lvalues), Xieff=np.array(Xieff_values), classcall=g)    
 
     pdetlists.append(pdet_values)
     sampleslists1.append(m1_values)
     sampleslists2.append(m2_values)
-    sampleslists3.append(d_Lvalues)
+    sampleslists3.append(Xieff_values)
     redshift_lists.append(redshift_values)
 
 f1.close()
 f2.close()
 f3.close()
 fz.close()
+fdL.close()
 
 
 meanxi1 = np.array(medianlist1)
@@ -471,15 +474,15 @@ flat_pdetlist = np.concatenate(pdetlists).flatten()
 flat_sample_z = np.concatenate(redshift_lists).flatten()
 print("min max m1 =", np.min(flat_samples1), np.max(flat_samples1))
 print("min max m2 =", np.min(flat_samples2), np.max(flat_samples2))
-print("min max dL =", np.min(flat_samples3), np.max(flat_samples3))
+print("min max Xieff =", np.min(flat_samples3), np.max(flat_samples3))
 
 # Create the scatter plot for pdet save with 3D analysis name
-u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',save_name="pdet_3Dm1m2dL_correct_mass_frame_m1_dL_scatter.png", pathplot=opts.pathplot, show_plot=False)
+u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',save_name="pdet_3Dm1m2dLXieff_correct_mass_frame_m1_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=False)
 #special plot with z on right y axis
-u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1dL_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
+u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1Xieff_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
 
 # Create the scatter plot for pdet 
-u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2dL_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
+u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2Xieff_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
 
 ##########################################
 sampleslists = np.vstack((flat_samples1, flat_samples2, flat_samples3)).T
@@ -488,21 +491,21 @@ print(sampleslists.shape)
 sample = np.vstack((meanxi1, meanxi2, meanxi3)).T
 ######################################################
 ################################################################################
-def get_kde_obj_eval(sample, rescale_arr, alphachoice, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw_dL=0.01):
-    maxRescale_dL = 1.0/minbw_dL
+def get_kde_obj_eval(sample, rescale_arr, alphachoice, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw_Xieff=0.01):
+    maxRescale_Xieff = 1.0/minbw_Xieff
     #Apply m1-m2 symmetry in the samples before fitting
     if mass_symmetry:
         m1 = sample[:, 0]  # First column corresponds to m1
         m2 = sample[:, 1]  # Second column corresponds to m2
-        dL = sample[:, 2]  # Third column corresponds to dL
-        sample2 = np.vstack((m2, m1, dL)).T
+        Xieff = sample[:, 2]  # Third column corresponds to Xieff
+        sample2 = np.vstack((m2, m1, Xieff)).T
         #Combine both samples into one array
         symsample = np.vstack((sample, sample2))
-        kde_object = ad.KDERescaleOptimization(symsample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'lnm2', 'dL'], input_transf=input_transf)
+        kde_object = ad.KDERescaleOptimization(symsample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'lnm2', 'Xieff'], input_transf=input_transf)
     else:
-        kde_object = ad.KDERescaleOptimization(sample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'lnm2', 'dL'], input_transf=input_transf)
+        kde_object = ad.KDERescaleOptimization(sample, stdize=True, rescale=rescale_arr, alpha=alphachoice, dim_names=['lnm1', 'lnm2', 'Xieff'], input_transf=input_transf)
 
-    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0.01, maxRescale_dL), (0, 1)), disp=True)
+    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alphachoice, bounds=((0.01,100),(0.01, 100),(0.01, maxRescale_Xieff), (0, 1)), disp=True)
     print("opt results = ", dictopt)
     optbwds = 1.0/dictopt[0:-1]
     print(optbwds)
@@ -515,16 +518,16 @@ def get_kde_obj_eval(sample, rescale_arr, alphachoice, input_transf=('log', 'log
 ##First median samples KDE
 init_rescale_arr = [1., 1., 1.]
 init_alpha_choice = [0.5]
-current_kde, errorbBW, erroraALP = get_kde_obj_eval(sample,  init_rescale_arr, init_alpha_choice, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw_dL=opts.min_bw_dLdim)
+current_kde, errorbBW, erroraALP = get_kde_obj_eval(sample,  init_rescale_arr, init_alpha_choice, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw_Xieff=opts.min_bw_Xieffdim)
 bwx, bwy, bwz = errorbBW[0], errorbBW[1], errorbBW[2]
 print(errorbBW)
 
-def get_sliced_data(xx, yy, kde3D,  dLgrid, dL_sliceval=500):
-    dL_index = np.searchsorted(dLgrid,  dL_sliceval)#500Mpc
-    dL_index_val = dLgrid[dL_index]
-    KDE_slice = kde3D[:, :, dL_index]  # Sliced values of F at the chosen x3
-    #Rate_slice = rate3D[:, :, dL_index]  # Sliced values of F at the chosen x3
-    M1_slice, M2_slice = xx[:, :, dL_index], yy[:, :, dL_index]  
+def get_sliced_data(xx, yy, kde3D,  Xieffgrid, Xieff_sliceval=500):
+    Xieff_index = np.searchsorted(Xieffgrid,  Xieff_sliceval)#500Mpc
+    Xieff_index_val = Xieffgrid[Xieff_index]
+    KDE_slice = kde3D[:, :, Xieff_index]  # Sliced values of F at the chosen x3
+    #Rate_slice = rate3D[:, :, Xieff_index]  # Sliced values of F at the chosen x3
+    M1_slice, M2_slice = xx[:, :, Xieff_index], yy[:, :, Xieff_index]  
     return M1_slice, M2_slice, KDE_slice, Rate_slice
 
 ### reweighting EM algorithm
@@ -537,7 +540,7 @@ iterbwylist = []
 iterbwzlist = []
 iteralplist = []
 #### We want to save data for rate(m1, m2) in HDF file 
-frateh5 = h5.File(opts.output_filename+'max_pdet_cap_'+str(opts.max_pdet)+'min_bw_dL'+str(opts.min_bw_dLdim)+'_optimize_code_test.hdf5', 'a')
+frateh5 = h5.File(opts.output_filename+'max_pdet_cap_'+str(opts.max_pdet)+'min_bw_Xieff'+str(opts.min_bw_Xieffdim)+'_optimize_code_test.hdf5', 'a')
 
 # Initialize buffer to store last 100 iterations of f(samples) for each event
 samples_per_event =  [len(event_list) for event_list in sampleslists3]
@@ -561,7 +564,7 @@ for i in range(Total_Iterations + discard):
     if opts.bootstrap_option =='poisson':
         rwsamples = np.concatenate(rwsamples)
     print("iter", i, "  totalsamples = ", len(rwsamples))
-    current_kde, shiftedbw, shiftedalp = get_kde_obj_eval(np.array(rwsamples), init_rescale_arr, init_alpha_choice, input_transf=('log', 'log', 'none'), mass_symmetry=True,  minbw_dL=opts.min_bw_dLdim)
+    current_kde, shiftedbw, shiftedalp = get_kde_obj_eval(np.array(rwsamples), init_rescale_arr, init_alpha_choice, input_transf=('log', 'log', 'none'), mass_symmetry=True,  minbw_Xieff=opts.min_bw_Xieffdim)
     bwx, bwy, bwz = shiftedbw[0], shiftedbw[1], shiftedbw[2]
     print("bwvalues", bwx, bwy, bwz)
     group = frateh5.create_group(f'iteration_{i}')
