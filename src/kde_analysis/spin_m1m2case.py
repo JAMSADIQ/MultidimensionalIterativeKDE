@@ -86,7 +86,7 @@ maxRescale_Xieffdim = round(1.0/ opts.min_bw_Xieffdim)
 print(f'max rescal factor in Xief dim = {maxRescale_Xieffdim}')
 
 #set the prior factors correctly here before reweighting
-prior_kwargs = {'dl_prior_power': opts.dl_prior_power, 'redshift_prior_power': opts.redshift_prior_power}
+prior_kwargs = {'redshift_prior_power': opts.redshift_prior_power}
 print(f"prior powers: {prior_kwargs}")
 print(f"pdet cap:  {opts.max_pdet}")
 ###cosmology 
@@ -166,17 +166,15 @@ def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
     )
 
 #this is specific to m1-m2-dL 3D analysis 
-def prior_factor_function(samples, redshift_vals, dl_prior_power, redshift_prior_power):
+def prior_factor_function(samples, redshift_vals, redshift_prior_power):
     """
     Compute a prior factor for reweighting for Xieff and masses from redshift to the source frame.
     For non-cosmo pe files:
-    - Use dL^power (distance factor).
     - If the source-frame mass is used, apply (1+z)^power for redshift scaling.
 
     Args:
         samples (np.ndarray): Array of samples with shape (N, 3), where N is the number of samples.
         redshift_vals:  (np.ndarray or list): Redshift values corresponding to the samples.
-        dl_prior_power (float, optional): Power to apply to the Xieff prior. Default is 2.0.
         redshift_prior_power (float, optional): Power to apply to the redshift prior. Default is 2.0
     Returns:
         np.ndarray: Prior factor for each sample, computed as 1 / (dL^power * (1+z)^power).
@@ -189,12 +187,15 @@ def prior_factor_function(samples, redshift_vals, dl_prior_power, redshift_prior
 
     # Extract values from samples
     m1_values,  m2_values, Xieff_values = samples[:, 0], samples[:, 1],  samples[:, 2]
-    q_values =  m1_values/m2_values
+    q_values =  m2_values/m1_values
+    Xieff_prior = np.zeros(len(q_values))
     aMax = 0.999
     #compute prior from Callister etal code
-    Xieff_prior = spin_prior.chi_effective_prior_from_isotropic_spins(q_values, aMax , Xieff_values)
-    redshift_prior = (1. + redshift_vals)**redshift_prior_power
+    for i in range(len(q_values)):#enumerate(q_values):
+        print(Xieff_values[i])
+        Xieff_prior[i] = spin_prior.chi_effective_prior_from_isotropic_spins(q_values[i], aMax , Xieff_values[i])
 
+    redshift_prior = (1. + redshift_vals)**redshift_prior_power
     # Compute and return the prior factor
     prior_factors = 1.0 / (Xieff_prior * redshift_prior)
 
