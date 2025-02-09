@@ -16,6 +16,8 @@ import matplotlib.patches
 from matplotlib.patches import Rectangle
 import glob
 import deepdish as dd
+from astropy.cosmology import FlatLambdaCDM, z_at_value
+import astropy.units as u
 
 rcParams["text.usetex"] = True
 rcParams["font.serif"] = "Computer Modern"
@@ -33,6 +35,9 @@ rcParams["grid.linewidth"] = 1.
 rcParams["grid.alpha"] = 0.6
 
 
+H0 = 67.9  # km/s/Mpc
+omega_m = 0.3065
+cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
 
 dict_p = {'m1':'m_1', 'm2':'m_2', 'Xieff':'\chi_{eff}', 'chieff': '\chi_{eff}', 'DL':'D_L', 'logm1':'ln m_1', 'logm2': 'ln m_2', 'alpha':'\alpha'}
 ###########
@@ -77,7 +82,7 @@ def plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_p
     plt.close()
     return 0
 
-def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetlist, flat_samples_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
+def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetlist, flat_samples_z, xlabel=r'$m_{1, \mathrm{source}} [M_\odot]$', ylabel=r'$d_L [\mathrm{Gpc}]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
     fig, ax1 = plt.subplots(figsize=(8, 6))
     # Scatter plot on the primary axis
     scatter = ax1.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10, cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1))
@@ -86,20 +91,23 @@ def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetl
     # Primary axis labels and log scale
     ax1.set_xlabel(xlabel, fontsize=20)
     ax1.set_ylabel(ylabel, fontsize=20)
-    # Secondary y-axis for flat_sample3
     ax2 = ax1.twinx()  # Create a twin y-axis
-    ax2.loglog()
-    ax2.scatter(flat_samples1, flat_samples_z, c=flat_pdetlist, s=1, cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1), alpha=0)
-    custom_ticks = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 1.2]  # Custom tick positions
-    ax2.set_yticks(custom_ticks)  # Specify custom ticks
-    ax2.set_yticklabels([f'{val:.1f}' for val in custom_ticks])
+    ax2.set_yscale('log')
+    # Get the tick locations from the left y-axis
+    y_ticks = ax1.get_yticks()
+    # Set the same tick locations for the right y-axis
+    ax2.set_yticks(y_ticks)
+    labels_ticks_z = [f'val{i+1}' for i in range(len(y_ticks))]
+    for i, yv in enumerate(y_ticks):
+        print(labelsy[i], y_ticks[i])
+        labels_ticks_z[i] = str(format(z_at_value(cosmo.luminosity_distance, y_ticks[i] * u.Gpc).value, ".2f"))
+    ax2.set_yticklabels(labels_ticks_z)
+    # Ensure the tick lines are the same on both sides
+    ax2.set_ylim(ax1.get_ylim())
     ax2.set_ylabel(r'$z$', fontsize=20)  # Add secondary axis label
     ax2.set_ylim(0.1, )
     ax2.grid(False)
-    ax1.loglog()
-    plt.subplots_adjust(right=0.6)  # Shift the plot slightly left to make space for the secondary y-axis and color bar
-
-    #plt.title(title, fontsize=20)
+    plt.subplots_adjust(right=0.6)  
     plt.tight_layout()
     plt.savefig(pathplot+save_name)
     if show_plot ==True:
@@ -372,7 +380,7 @@ def average2Dkde_m1m2_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', titl
     axl.set_xlim(5, 100.1)
     axl.loglog()
     axl.set_aspect('equal')
-    axl.set_title('dL={0:.1f}[Mpc]'.format(dLval))
+    axl.set_title(r'$d_L=${0}[Mpc]'.format(dLval), fontsize=18)
     fig.tight_layout()
     plt.savefig(pathplot+plottag+'m1_'+y_label+'_2D'+plot_label+'Iter{0}dL{1:.3f}.png'.format(titlename, dLval), bbox_inches='tight')
     plt.close()
