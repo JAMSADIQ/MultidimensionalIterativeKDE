@@ -18,7 +18,7 @@ from matplotlib.colors import LogNorm, Normalize
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
-import o123_class_found_inj_general as u_pdet
+import new_o123_class_found_inj_general as u_pdet
 
 # Set Matplotlib parameters for consistent plotting
 rcParams.update({
@@ -229,7 +229,7 @@ def get_random_sample(original_samples, bootstrap='poisson'):
     return reweighted_sample
 
 
-def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function,  prior_factor_kwargs=None, max_pdet_cap=0.1):
+def get_reweighted_sample(original_samples, redshiftvals, vt_vals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function,  prior_factor_kwargs=None):
     """
     Generate  reweighted random sample/samples  from the original PE samples
     
@@ -245,8 +245,8 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
     redshiftvals : array-like
         The redshift values corresponding to the `original_samples`, used to compute prior factors.
         
-    pdet_vals : array-like
-        The detection probability values for each sample, used to scale the KDE estimate.
+    vt_vals : array-like
+        The sensitive volume time values for each sample, used to scale the KDE estimate.
         
     fpop_kde : KDE object
         A kernel density estimate (KDE) object, such as a `GaussianKDE`, that models the population distribution.
@@ -264,9 +264,6 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
     prior_factor_kwargs : dict, optional, default=None
         Additional keyword arguments to pass to the `prior_factor` function when calculating prior factors.
         
-    max_pdet_cap : float, optional, default=0.1
-        The maximum detection probability cap. Detection probabilities above this threshold will be scaled down 
-        accordingly 
 
     Returns:
     --------
@@ -278,7 +275,7 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
         prior_factor_kwargs = {}
 
     # Evaluate the KDE and apply the maximum detection probability cap
-    fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / np.maximum(pdet_vals, max_pdet_cap)
+    fkde_samples = fpop_kde.evaluate_with_transf(original_samples) / vt_vals
 
     # Adjust probabilities based on the prior factor
     frate_atsample = fkde_samples * prior_factor(original_samples, redshiftvals, **prior_factor_kwargs) 
@@ -297,7 +294,7 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
     return reweighted_sample
 
 
-def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals, meanKDEevent, bootstrap_choice='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None, max_pdet_cap=0.1):
+def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, vt_vals, meanKDEevent, bootstrap_choice='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None):
     """
     Generate reweighted samples based on the median of estimated KDE train vals for a set of PE samples,
     adjusting for detection probability and cosmological redshift.
@@ -313,8 +310,8 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals,
     redshiftvals : array-like
         The redshift values corresponding to the `sample`, used in the calculation of the prior factor.
         
-    pdet_vals : array-like
-        The detection probability values for each PE sample, used to adjust the KDE weights.
+    vt_vals : array-like
+        The sensitive Volume * Times values for each PE sample, used to adjust the KDE weights.
         
     meanKDEevent : array-like
         The mean KDE values for the PE samples, which represent the average KDE values calculated 
@@ -331,8 +328,6 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals,
     prior_factor_kwargs : dict, optional, default=None
         Additional keyword arguments for the `prior_factor` function when calculating prior factors.
         
-    max_pdet_cap : float, optional, default=0.1
-           The maximum detection probability cap. Detection probabilities above this threshold will be scaled down accordingly 
 
     Returns:
     --------
@@ -345,10 +340,10 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals,
         prior_factor_kwargs = {}
 
     # Compute KDE probabilities divide by regularized pdetvals
-    kde_by_pdet = meanKDEevent/np.maximum(pdet_vals, max_pdet_cap)
+    kde_by_vt = meanKDEevent/vt_vals
 
     # Adjust probabilities based on the prior factor
-    kde_by_pdet  *= prior_factor(sample, redshiftvals, **prior_factor_kwargs)
+    kde_by_vt  *= prior_factor(sample, redshiftvals, **prior_factor_kwargs)
 
     #Normalize:  sum=1
     norm_mediankdevals = kde_by_pdet/sum(kde_by_pdet)
@@ -393,6 +388,9 @@ dmid_fun = 'Dmid_mchirp_fdmid_fspin' #'Dmid_mchirp_fdmid'
 emax_fun = 'emax_exp'
 alpha_vary = None
 g = u_pdet.Found_injections(dmid_fun = 'Dmid_mchirp_fdmid_fspin', emax_fun='emax_exp', alpha_vary = None, ini_files = None, thr_far = 1, thr_snr = 10)
+g.load_inj_set(run_dataset)
+g.get_opt_params(run_fit)
+g.set_shape_params()
 
 
 fz = h5.File(opts.datafilename_redshift, 'r')
@@ -419,7 +417,8 @@ sampleslists2 = []
 medianlist2 = f2['initialdata/original_mean'][...]
 sampleslists3 = []
 medianlist3 = f3['initialdata/original_mean'][...]
-pdetlists = []
+vth5file = h5.File("VTatposteriors_allevents.hdf5", "w")
+vtlists = []
 redshift_lists = []
 for k in d1.keys():
     eventlist.append(k)
@@ -439,8 +438,9 @@ for k in d1.keys():
         m2det_values = m2det_values[correct_indices]
         Xieff_values = Xieff_values[correct_indices]
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
-        pdet_values =  u_pdet.get_pdet_m1m2dL(np.array(m1det_values), np.array(m2det_values), np.array(d_Lvalues), Xieff=np.array(Xieff_values), classcall=g)
-        #get bad PDET bad out
+        vt_values = np.zeros(len(m1det_values))
+        for ix in range(len(vt_values)):
+            vt_values[ix] = g.sensitive_volume(run_fit, m1det_values[ix], m2det_values[ix], chieff = Xieff_values[ix])
     else:
         m1_values = d1[k][...]
         m1det_values = d1[k][...]*(1.0 + dz[k][...])
@@ -448,11 +448,12 @@ for k in d1.keys():
         m2det_values = d2[k][...]*(1.0 + dz[k][...])
         d_Lvalues = ddL[k][...]
         Xieff_values = d3[k][...]
-
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
-        pdet_values = u_pdet.get_pdet_m1m2dL(np.array(m1det_values), np.array(m2det_values),np.array(d_Lvalues), Xieff=np.array(Xieff_values), classcall=g)    
-
-    pdetlists.append(pdet_values)
+        vt_values = np.zeros(len(m1det_values))
+        for ix in range(len(vt_values)):
+            vt_values[ix] = g.sensitive_volume(run_fit, m1det_values[ix], m2det_values[ix], chieff = Xieff_values[ix])
+    vth5file.create_dataset(k, data=np.array(vt_values))
+    vtlists.append(vt_values)
     sampleslists1.append(m1_values)
     sampleslists2.append(m2_values)
     sampleslists3.append(Xieff_values)
@@ -463,6 +464,7 @@ f2.close()
 f3.close()
 fz.close()
 fdL.close()
+vth5file.close()
 
 
 meanxi1 = np.array(medianlist1)
@@ -471,14 +473,26 @@ meanxi3 = np.array(medianlist3)
 flat_samples1 = np.concatenate(sampleslists1).flatten()
 flat_samples2 = np.concatenate(sampleslists2).flatten()
 flat_samples3 = np.concatenate(sampleslists3).flatten()
-flat_pdetlist = np.concatenate(pdetlists).flatten()
+flat_pdetlist = np.concatenate(vtlists).flatten()
 flat_sample_z = np.concatenate(redshift_lists).flatten()
 print("min max m1 =", np.min(flat_samples1), np.max(flat_samples1))
 print("min max m2 =", np.min(flat_samples2), np.max(flat_samples2))
 print("min max Xieff =", np.min(flat_samples3), np.max(flat_samples3))
 
+
 # Create the scatter plot for pdet save with 3D analysis name
-u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',save_name="pdet_3Dm1m2dLXieff_correct_mass_frame_m1_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=False)
+def eta_from_mass1_mass2(mass1, mass2):
+    """Returns the symmetric mass ratio from mass1 and mass2."""
+    return mass1*mass2 / (mass1 + mass2)**2.
+def mchirp_from_mass1_mass2(mass1, mass2):
+    """Returns the chirp mass from mass1 and mass2."""
+    return eta_from_mass1_mass2(mass1, mass2)**(3./5) * (mass1 + mass2)
+
+Mchirp = mchirp_from_mass1_mass2(flat_samples1, flat_samples2) 
+#u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$VT$',save_name="VT_3Dm1m2dLXieff_correct_mass_frame_m1_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=True)
+u_plot.plot_pdetscatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M}_\mathrm{chirp}$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$VT$',save_name="VT_3Dm1m2dLXieff_correct_mass_frame_m1_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=True)
+u_plot.plot_pdetscatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$VT$',save_name="VT_3Dm1m2dLXieff_correct_mass_frame_m1_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=False)
+
 #special plot with z on right y axis
 u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1Xieff_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
 
@@ -541,7 +555,7 @@ iterbwylist = []
 iterbwzlist = []
 iteralplist = []
 #### We want to save data for rate(m1, m2) in HDF file 
-frateh5 = h5.File(opts.output_filename+'max_pdet_cap_'+str(opts.max_pdet)+'min_bw_Xieff'+str(opts.min_bw_Xieffdim)+'_optimize_code_test.hdf5', 'a')
+frateh5 = h5.File(opts.output_filename+'VT_min_bw_Xieff'+str(opts.min_bw_Xieffdim)+'_optimize_code_test.hdf5', 'a')
 
 # Initialize buffer to store last 100 iterations of f(samples) for each event
 samples_per_event =  [len(event_list) for event_list in sampleslists3]
@@ -550,16 +564,16 @@ buffers = [[] for _ in range(num_events)]
 for i in range(Total_Iterations + discard):
     print("i - ", i)
     rwsamples = []
-    for eventid, (samplem1, samplem2, sample3, redshiftvals, pdet_k) in enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshift_lists, pdetlists)):
+    for eventid, (samplem1, samplem2, sample3, redshiftvals, vt_k) in enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshift_lists, vtlists)):
         samples= np.vstack((samplem1, samplem2, sample3)).T
         event_kde = current_kde.evaluate_with_transf(samples)
         buffers[eventid].append(event_kde)
         if i < discard + Nbuffer :
-            rwsample = get_reweighted_sample(samples, redshiftvals, pdet_k, current_kde, bootstrap=opts.bootstrap_option,  prior_factor_kwargs=prior_kwargs, max_pdet_cap=opts.max_pdet)
+            rwsample = get_reweighted_sample(samples, redshiftvals, vt_k, current_kde, bootstrap=opts.bootstrap_option,  prior_factor_kwargs=prior_kwargs)
         else:
             medians_kde_event =  np.median(buffers[eventid][-Nbuffer:], axis=0)
             #reweight base don events previous 100 KDEs median or mean
-            rwsample= New_median_bufferkdelist_reweighted_samples(samples, redshiftvals, pdet_k, medians_kde_event, bootstrap_choice=opts.bootstrap_option, prior_factor_kwargs=prior_kwargs, max_pdet_cap=opts.max_pdet)
+            rwsample= New_median_bufferkdelist_reweighted_samples(samples, redshiftvals, pdet_k, medians_kde_event, bootstrap_choice=opts.bootstrap_option, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
     
     if opts.bootstrap_option =='poisson':
