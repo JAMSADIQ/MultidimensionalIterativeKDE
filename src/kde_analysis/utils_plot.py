@@ -93,21 +93,16 @@ def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetl
     ax1.set_ylabel(ylabel, fontsize=20)
     ax2 = ax1.twinx()  # Create a twin y-axis
     ax2.set_yscale('log')
-    # Get the tick locations from the left y-axis
-    y_ticks = ax1.get_yticks()
-    # Set the same tick locations for the right y-axis
-    ax2.set_yticks(y_ticks)
-    labels_ticks_z = [f'val{i+1}' for i in range(len(y_ticks))]
-    for i, yv in enumerate(y_ticks):
-        print(labelsy[i], y_ticks[i])
-        labels_ticks_z[i] = str(format(z_at_value(cosmo.luminosity_distance, y_ticks[i] * u.Gpc).value, ".2f"))
-    ax2.set_yticklabels(labels_ticks_z)
-    # Ensure the tick lines are the same on both sides
+    ax2.minorticks_off()
+    z_ticks = np.array([0.1, 0.2, 0.3, 0.4, 0.6,  0.8, 1.0, 1.2])
+    z_ticklabels = ['0.1', '0.2', '0.3', '0.4', '0.6', '0.8', '1.0', '1.2']
+    z_tick_dlvals = cosmo.luminosity_distance(z_ticks).to('Gpc').value
+    ax2.set_yticks(z_tick_dlvals, labels=z_ticklabels)
     ax2.set_ylim(ax1.get_ylim())
+    ax2.tick_params(axis='y', direction='in', pad=3)
     ax2.set_ylabel(r'$z$', fontsize=20)  # Add secondary axis label
-    ax2.set_ylim(0.1, )
     ax2.grid(False)
-    plt.subplots_adjust(right=0.6)  
+    ax1.grid(True)
     plt.tight_layout()
     plt.savefig(pathplot+save_name)
     if show_plot ==True:
