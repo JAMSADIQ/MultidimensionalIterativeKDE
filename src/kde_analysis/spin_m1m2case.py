@@ -346,7 +346,7 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, vt_vals, m
     kde_by_vt  *= prior_factor(sample, redshiftvals, **prior_factor_kwargs)
 
     #Normalize:  sum=1
-    norm_mediankdevals = kde_by_pdet/sum(kde_by_pdet)
+    norm_mediankdevals = kde_by_vt/sum(kde_by_vt)
 
     rng = np.random.default_rng()
 
@@ -473,7 +473,7 @@ meanxi3 = np.array(medianlist3)
 flat_samples1 = np.concatenate(sampleslists1).flatten()
 flat_samples2 = np.concatenate(sampleslists2).flatten()
 flat_samples3 = np.concatenate(sampleslists3).flatten()
-flat_pdetlist = np.concatenate(vtlists).flatten()
+flat_vtlist = np.concatenate(vtlists).flatten()
 flat_sample_z = np.concatenate(redshift_lists).flatten()
 print("min max m1 =", np.min(flat_samples1), np.max(flat_samples1))
 print("min max m2 =", np.min(flat_samples2), np.max(flat_samples2))
@@ -494,10 +494,10 @@ u_plot.plot_pdetscatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M
 u_plot.plot_pdetscatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$VT$',save_name="VT_3Dm1m2dLXieff_correct_mass_frame_m1_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=False)
 
 #special plot with z on right y axis
-u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1Xieff_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
+u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_vtlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1Xieff_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
 
 # Create the scatter plot for pdet 
-u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2Xieff_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
+u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_vtlist, save_name="pdet_m1m2Xieff_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
 
 ##########################################
 sampleslists = np.vstack((flat_samples1, flat_samples2, flat_samples3)).T
@@ -573,7 +573,7 @@ for i in range(Total_Iterations + discard):
         else:
             medians_kde_event =  np.median(buffers[eventid][-Nbuffer:], axis=0)
             #reweight base don events previous 100 KDEs median or mean
-            rwsample= New_median_bufferkdelist_reweighted_samples(samples, redshiftvals, pdet_k, medians_kde_event, bootstrap_choice=opts.bootstrap_option, prior_factor_kwargs=prior_kwargs)
+            rwsample= New_median_bufferkdelist_reweighted_samples(samples, redshiftvals, vt_k, medians_kde_event, bootstrap_choice=opts.bootstrap_option, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
     
     if opts.bootstrap_option =='poisson':
