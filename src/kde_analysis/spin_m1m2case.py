@@ -50,8 +50,6 @@ parser.add_argument('--parameter1', help='name of parameter which we use for x-a
 parser.add_argument('--parameter2', help='name of parameter which we use for y-axis for KDE: m2', default='m2')
 parser.add_argument('--parameter3', help='name of parameter which we use for y-axis for KDE [can be Xieff, dL]', default='Xieff')
 parser.add_argument('--injectionfile',  help='H5 file from GWTC3 public data for search sensitivity.', default='endo3_bbhpop-LIGO-T2100113-v12.hdf5')
-# selection effect capping
-parser.add_argument('--max-pdet', default=0.1, type=float, help='Capping value for small pdet to introduce regularization.')
 # priors 
 parser.add_argument('--xieff-prior-function', type=str, default='chi_effective_prior_from_isotropic_spins', help='prior function for xieff form priors.py file need to fix this.')
 parser.add_argument('--redshift-prior-power', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
@@ -88,7 +86,6 @@ print(f'max rescal factor in Xief dim = {maxRescale_Xieffdim}')
 #set the prior factors correctly here before reweighting
 prior_kwargs = {'redshift_prior_power': opts.redshift_prior_power}
 print(f"prior powers: {prior_kwargs}")
-print(f"pdet cap:  {opts.max_pdet}")
 ###cosmology 
 H0 = 67.9  # km/s/Mpc
 omega_m = 0.3065
