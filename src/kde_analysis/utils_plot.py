@@ -16,8 +16,6 @@ import matplotlib.patches
 from matplotlib.patches import Rectangle
 import glob
 import deepdish as dd
-from astropy.cosmology import FlatLambdaCDM, z_at_value
-import astropy.units as u
 
 rcParams["text.usetex"] = True
 rcParams["font.serif"] = "Computer Modern"
@@ -35,22 +33,60 @@ rcParams["grid.linewidth"] = 1.
 rcParams["grid.alpha"] = 0.6
 
 
-H0 = 67.9  # km/s/Mpc
-omega_m = 0.3065
-cosmo = FlatLambdaCDM(H0=H0, Om0=omega_m)
 
 dict_p = {'m1':'m_1', 'm2':'m_2', 'Xieff':'\chi_{eff}', 'chieff': '\chi_{eff}', 'DL':'D_L', 'logm1':'ln m_1', 'logm2': 'ln m_2', 'alpha':'\alpha'}
 ###########
+############# m1-Xieff plot 2D slice plot
+def get_m1Xieff_at_m2_slice_plot(medianlist_m1, medianlist_xieff, m2_src_grid, m2_target, M1, XIEFF, KDElist, VTinterp,  iterN=1, pathplot='./', plot_name='KDE'):
+    new_2Dlists = []
+    for kde in KDElist:
+        new_2Dlists.append(kde[:, m2_idx, :])
+        #KDEaverage = np.percentile(KDElist, 50, axis=0)
+        #KDE_slice = KDEaverage[:, m2_idx, :] 
+    data_slice = np.percentile(new_2Dlists, 50, axis=0)
+    if plot_name='Rate':
+        data_slice = 69*KDE_slice/VTinterp #69 is numbe of observed BBH signals         
+        colorbar_label = r'$\mathcal{R}(m_1, \chi_\mathrm{eff})$"'
+    else:
+        colorbar_label = r'KDE-value'
+    max_density = np.nanmax(data_slice)
+    max_exp = np.floor(np.log10(max_density))  # Find the highest power of 10 below max_density
+    contourlevels = 10 ** (max_exp - np.arange(4))[::-1]
+    vmin, vmax = contourlevels[0] , contourlevels[-1]# np.nanmax(KDE_slice)  # Min and max values for KDE
+    print("vmin, vmax is =", vmin, vmax)
+    # Plot
+    plt.figure(figsize=(8, 6))
+    norm = LogNorm(vmin=vmin, vmax=vmax)  # Apply log normalization
+    pcm = plt.pcolormesh(M1, XIEFF, data_slice, cmap='twilight_r', norm=norm, shading='auto')
+    contours = plt.contour(M1,  XIEFF, data_slice, levels=contourlevels, colors='black', linewidths=0.5)
+    plt.clabel(contours, fmt="% .1e", colors='black', fontsize=8)
 
+    # Colorbar
+    cbar = plt.colorbar(pcm, label=colorbar_label)
+    cbar.set_ticks(contourlevels)
+    plt.scatter(medianlist_m1, medianlist_xieff, color='blue', marker='+', s=20)
+    plt.ylabel(r"$\chi_\mathrm{effective}$")
+    plt.xlabel(r"$m_\mathrm{1,source} \,[M_\odot]$")
+    plt.semilogx()
+    plt.title(f"Slice at m2 = {m2_target}")
+    plt.tight_layout()
+    plt.savefig(pathplot+"Average_Iter{0}"+plot_name+"m1Xieffatm2_{1}.png".format(iterN, m2_target))
+    plt.close()
+    return 0
+
+
+
+###################################
 def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}\, \,\, q^{1.26}$',save_name="pdet_power_law_m2_correct_mass_frame_m1_dL_scatter.png", pathplot='./', show_plot=False):
-
+    flat_pdetlist = flat_pdetlist/1e9
     plt.figure(figsize=(8,6))
-    plt.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10 ,cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1))
+    plt.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10 ,cmap='viridis', norm=LogNorm(vmin=min(flat_pdetlist), vmax=max(flat_pdetlist)))
     cbar = plt.colorbar(label=r'$p_\mathrm{det}$')
-    cbar.set_label(r'$p_\mathrm{det}$', fontsize=20)
+    #cbar.set_label(r'$p_\mathrm{det}$', fontsize=20)
+    cbar.set_label(r'$\mathrm{VT}/\mathrm{Gpc}^3 yr$', fontsize=20)
     plt.xlabel(xlabel, fontsize=20)
     plt.ylabel(ylabel, fontsize=20)
-    plt.loglog()
+    plt.semilogx()
     #plt.title(title, fontsize=20)
     plt.tight_layout()
     plt.savefig(pathplot+save_name)
@@ -82,7 +118,7 @@ def plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_p
     plt.close()
     return 0
 
-def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetlist, flat_samples_z, xlabel=r'$m_{1, \mathrm{source}} [M_\odot]$', ylabel=r'$d_L [\mathrm{Gpc}]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
+def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetlist, flat_samples_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
     fig, ax1 = plt.subplots(figsize=(8, 6))
     # Scatter plot on the primary axis
     scatter = ax1.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10, cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1))
@@ -91,18 +127,20 @@ def plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples2, flat_pdetl
     # Primary axis labels and log scale
     ax1.set_xlabel(xlabel, fontsize=20)
     ax1.set_ylabel(ylabel, fontsize=20)
+    # Secondary y-axis for flat_sample3
     ax2 = ax1.twinx()  # Create a twin y-axis
-    ax2.set_yscale('log')
-    ax2.minorticks_off()
-    z_ticks = np.array([0.1, 0.2, 0.3, 0.4, 0.6,  0.8, 1.0, 1.2])
-    z_ticklabels = ['0.1', '0.2', '0.3', '0.4', '0.6', '0.8', '1.0', '1.2']
-    z_tick_dlvals = cosmo.luminosity_distance(z_ticks).to('Gpc').value
-    ax2.set_yticks(z_tick_dlvals, labels=z_ticklabels)
-    ax2.set_ylim(ax1.get_ylim())
-    ax2.tick_params(axis='y', direction='in', pad=3)
+    ax2.semilogx()
+    ax2.scatter(flat_samples1, flat_samples_z, c=flat_pdetlist, s=1, cmap='viridis', norm=LogNorm(vmin=1e-5, vmax=1), alpha=0)
+    custom_ticks = [0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 1.2]  # Custom tick positions
+    ax2.set_yticks(custom_ticks)  # Specify custom ticks
+    ax2.set_yticklabels([f'{val:.1f}' for val in custom_ticks])
     ax2.set_ylabel(r'$z$', fontsize=20)  # Add secondary axis label
+    ax2.set_ylim(0.1, )
     ax2.grid(False)
-    ax1.grid(True)
+    ax1.semilogx()
+    plt.subplots_adjust(right=0.6)  # Shift the plot slightly left to make space for the secondary y-axis and color bar
+
+    #plt.title(title, fontsize=20)
     plt.tight_layout()
     plt.savefig(pathplot+save_name)
     if show_plot ==True:
