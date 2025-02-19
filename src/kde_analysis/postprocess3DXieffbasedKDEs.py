@@ -161,8 +161,8 @@ for _, row in df.iterrows():
 # **Step 4: Interpolate using RegularGridInterpolator*
 interp_VT = RegularGridInterpolator((m1_vals, m2_vals, Xieff_vals), VT_values, bounds_error=False, fill_value=np.nan) #nan can be an issue
 m2_fixed = 10 #change m2 here to 35
-query_points = np.array([M1.ravel(), np.full(M1.size, m2_target), XIEFF.ravel()]).T
-VT_interpolated = VTinterp(query_points).reshape(M1.shape)
+query_points = np.array([M1.ravel(), np.full(M1.size, m2_fixed), XIEFF.ravel()]).T
+VT_interpolated = interp_VT(query_points).reshape(M1.shape)
 
 #we want to save data for each 100 iteration to avoid very huge HDF file 
 savehf = h5.File(opts.output_filename + "Save3DKDEm1m2_Xieff_outputs.hdf5", "w")
@@ -201,8 +201,6 @@ for i in range(Total_Iterations+discard): #fix this as this can change
         # Evaluate the KDE on the evaluation samples
         eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
         KDE_slice = eval_kde3d.reshape(XX.shape)
-        savehf.create_dataset("kde_iter{0}".format(i), data=KDE_slice)
-        savehf.flush()
         kde_list.append(KDE_slice)
         if i > 0  and i%100 == 0:
             u_plot.get_m1Xieff_at_m2_slice_plot(medianlist1, medianlist3, m2_src_grid, m2_fixed, M1, XIEFF, kde_list[-100:], VT_interpolated, iterN=i, plot_name='KDE', pathplot='./')
