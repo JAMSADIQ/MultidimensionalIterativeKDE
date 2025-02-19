@@ -440,7 +440,7 @@ for k in d1.keys():
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
         vt_values = np.zeros(len(m1det_values))
         for ix in range(len(vt_values)):
-            vt_values[ix] = g.sensitive_volume(run_fit, m1det_values[ix], m2det_values[ix], chieff = Xieff_values[ix])
+            vt_values[ix] = g.total_sensitive_volume(m1_values[ix], m2_values[ix], chieff = Xieff_values[ix]) 
     else:
         m1_values = d1[k][...]
         m1det_values = d1[k][...]*(1.0 + dz[k][...])
@@ -451,7 +451,7 @@ for k in d1.keys():
         redshift_values = z_at_value(cosmo.luminosity_distance, d_Lvalues*u.Mpc).value
         vt_values = np.zeros(len(m1det_values))
         for ix in range(len(vt_values)):
-            vt_values[ix] = g.sensitive_volume(run_fit, m1det_values[ix], m2det_values[ix], chieff = Xieff_values[ix])
+            vt_values[ix] = g.total_sensitive_volume(m1_values[ix], m2_values[ix], chieff = Xieff_values[ix])
     vth5file.create_dataset(k, data=np.array(vt_values))
     vtlists.append(vt_values)
     sampleslists1.append(m1_values)
