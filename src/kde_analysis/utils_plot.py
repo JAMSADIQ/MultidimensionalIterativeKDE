@@ -44,7 +44,7 @@ def get_m1Xieff_at_m2_slice_plot(medianlist_m1, medianlist_xieff, m2_src_grid, m
         #KDEaverage = np.percentile(KDElist, 50, axis=0)
         #KDE_slice = KDEaverage[:, m2_idx, :] 
     data_slice = np.percentile(new_2Dlists, 50, axis=0)
-    if plot_name='Rate':
+    if plot_name=='Rate':
         data_slice = 69*KDE_slice/VTinterp #69 is numbe of observed BBH signals         
         colorbar_label = r'$\mathcal{R}(m_1, \chi_\mathrm{eff})$"'
     else:
@@ -70,7 +70,7 @@ def get_m1Xieff_at_m2_slice_plot(medianlist_m1, medianlist_xieff, m2_src_grid, m
     plt.semilogx()
     plt.title(f"Slice at m2 = {m2_target}")
     plt.tight_layout()
-    plt.savefig(pathplot+"Average_Iter{0}"+plot_name+"m1Xieffatm2_{1}.png".format(iterN, m2_target))
+    plt.savefig(pathplot+"Average"+plot_name+"m1Xieffatm2_{1}_Iter{0}.png".format(iterN, m2_target))
     plt.close()
     return 0
 
