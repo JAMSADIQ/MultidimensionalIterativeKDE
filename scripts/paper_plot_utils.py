@@ -1,21 +1,11 @@
 #Jam Sadiq
 # A script for making plots for the paper
 
-#import libraries
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
 from matplotlib.colors import LogNorm, Normalize
-import matplotlib.colors as colors
-from matplotlib import cm
 import matplotlib.ticker as ticker
-import matplotlib.gridspec as gridspec
-from matplotlib.lines import Line2D
-import matplotlib.ticker as ticker
-import matplotlib.patches
-from matplotlib.patches import Rectangle
-import glob
-import deepdish as dd
+from matplotlib import rcParams
 
 rcParams["text.usetex"] = True
 rcParams["font.serif"] = "Computer Modern"
