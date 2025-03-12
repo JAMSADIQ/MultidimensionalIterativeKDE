@@ -152,6 +152,7 @@ for f in opts.o2filesname:
 
     # Generate random indices once for all parameters
     if opts.inverse_chieff_prior_weight:
+        import sys ; sys.path.append('../kde_analysis')
         from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
         chivals = dat['chi_eff'][:]
         weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
@@ -190,7 +191,6 @@ for f in opts.o3afilesname:
 
     # Generate random indices once for all parameters
     if opts.inverse_chieff_prior_weight:
-        from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
         chivals = dat['chi_eff'][:]
         weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
         print(f'chi_eff based weights cover {weights.min():.2f} - {weights.max():.1f}, '
@@ -228,7 +228,6 @@ for f in opts.o3bfilesname:
 
     # Generate random indices once for all parameters
     if opts.inverse_chieff_prior_weight:
-        from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
         chivals = dat['chi_eff'][:]
         weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
         print(f'chi_eff based weights cover {weights.min():.2f} - {weights.max():.1f}, '
