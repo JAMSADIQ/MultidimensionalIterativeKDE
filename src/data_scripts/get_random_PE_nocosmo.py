@@ -15,6 +15,7 @@ parser.add_argument("--o3afilesname", nargs='+', help="List of paths to O3a PE e
 parser.add_argument("--o3bfilesname", nargs='+', help="List of paths to O3b PE eventname.h5 files only comoving frame")
 parser.add_argument("--tag", default="GWTC3", required=True, help="String to label output file")
 parser.add_argument("--inverse-chieff-prior-weight", action='store_true', help="If given, weight samples by the inverse of the PE prior over chi_eff")
+parser.add_argument("--max-a", type=float, default=0.999, help="Max spin magnitude for chieff prior calculation. Default 0.999")
 parser.add_argument("--eventsType", default="BBH", required=True, help="description of type of events used. AllCompactObject or BBH")
 parser.add_argument("--min-median-mass", default=3.0, type=float, required=True, help="If eventType BBH is chosen, remove events with one or both component median masses below given value")
 parser.add_argument('--pathdata', default='./', help='directory to save data file')
@@ -127,6 +128,14 @@ def gwdata_save(datfilename, eventslist, pesamplelists, meanxi, sigmaxi):
     return meanxi, error_meanxi, pesamplelists 
 
 
+def Neff(weights):
+    """
+    Effective sample size in importance sampling with given weights
+    """
+    w = np.array(weights)
+    return w.sum() ** 2. / (w ** 2.).sum()
+
+
 for f in opts.o2filesname:
     eventnamef = os.path.splitext(path_leaf(f))[0]
     dat = h5py.File(f, 'r')[eventnamef+'/posterior_samples']
@@ -136,17 +145,18 @@ for f in opts.o2filesname:
     if opts.eventsType == 'BBH':
         m1med, m2med = np.percentile(m1vals, 50), np.percentile(m2vals, 50)
         if not(m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
-            print("This is a nonBBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            print(f"This is a nonBBH event {eventnamef} with m1, m2 = {m1med:.3f}, {m2med:.3f}")
             continue  # don't process the file
         else:
-            print("This is a BBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            print(f"This is a BBH event {eventnamef} with m1, m2 = {m1med:.2f}, {m2med:.2f}")
 
     # Generate random indices once for all parameters
     if opts.inverse_chieff_prior_weight:
         from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
         chivals = dat['chi_eff'][:]
         weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
-        print('chi_eff based weights cover', weights.min(), weights.max())
+        print(f'chi_eff based weights cover {weights.min():.2f} - {weights.max():.1f}, '
+              f'Neff {Neff(weights):.1f}')
     else:
         weights = None
     random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
@@ -173,17 +183,18 @@ for f in opts.o3afilesname:
     if opts.eventsType == 'BBH':
         m1med, m2med = np.percentile(m1vals, 50), np.percentile(m2vals, 50)
         if not(m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
-            print("This is a nonBBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            print(f"This is a nonBBH event {eventnamef} with m1, m2 = {m1med:.3f}, {m2med:.3f}")
             continue  # don't process the file
         else:
-            print("This is a BBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            print(f"This is a BBH event {eventnamef} with m1, m2 = {m1med:.2f}, {m2med:.2f}")
 
     # Generate random indices once for all parameters
     if opts.inverse_chieff_prior_weight:
         from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
         chivals = dat['chi_eff'][:]
         weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
-        print('chi_eff based weights cover', weights.min(), weights.max())
+        print(f'chi_eff based weights cover {weights.min():.2f} - {weights.max():.1f}, '
+              f'Neff {Neff(weights):.1f}')
     else:
         weights = None
     random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
@@ -210,17 +221,18 @@ for f in opts.o3bfilesname:
     if opts.eventsType == 'BBH':
         m1med, m2med = np.percentile(m1vals, 50), np.percentile(m2vals, 50)
         if not(m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
-            print("This is a nonBBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            print(f"This is a nonBBH event {eventnamef} with m1, m2 = {m1med:.3f}, {m2med:.3f}")
             continue  # don't process the file
         else:
-            print("This is a BBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            print(f"This is a BBH event {eventnamef} with m1, m2 = {m1med:.2f}, {m2med:.2f}")
 
     # Generate random indices once for all parameters
     if opts.inverse_chieff_prior_weight:
         from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
         chivals = dat['chi_eff'][:]
         weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
-        print('chi_eff based weights cover', weights.min(), weights.max())
+        print(f'chi_eff based weights cover {weights.min():.2f} - {weights.max():.1f}, '
+              f'Neff {Neff(weights):.1f}')
     else:
         weights = None
     random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
