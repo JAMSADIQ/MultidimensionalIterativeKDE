@@ -7,23 +7,26 @@ import h5py
 import ntpath
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--parameter1", type=str, default='mass_1_source', help="name of param")
-parser.add_argument("--parameter2", type=str, default='mass_2_source', help="name of param")
-parser.add_argument("--parameter3", type=str, default='luminosity_distance', help="name of param")
-parser.add_argument("--parameter4", type=str, default='redshift', help="name of param")
-parser.add_argument("--parameter5", type=str, default='xi_eff', help="name of param")
+parser.add_argument("--parameters", nargs='+', default=['mass_1_source', 'mass_2_source', 'luminosity_distance', 'redshift', 'chi_eff'], help="names of params to retrieve from PE samples")
 parser.add_argument("--rsample", default=100, type=int, help="number of random samples")
 parser.add_argument("--seed", default=12345, type=int, help="Random seed")
-parser.add_argument('--pathh5files', type=str, default='/home/jam.sadiq/PopModels/projectKDE/Analysis/Data/public_data/latest_O3a_O3b_public_data/', help="directory where .h5 files of latest PE data is saved")
-parser.add_argument("--o2filesname", nargs="+", type=str, required=True, help="List of all O1 and O2 PE  eventname.h5   files")
-parser.add_argument("--o3afilesname", nargs="+", type=str, required=True, help="List of all O3a PE eventname.h5   files  only comoving frame")
-parser.add_argument("--useO3b", action='store_true',help="if we want O3b files use this command otherwise dont use this option")
-parser.add_argument("--o3bfilesname", nargs="+", type=str,help="List of all O3b PE eventname.h5   files  only comoving frame")
-parser.add_argument("--tag", default="GWTC3", type=str, required=True, help="initial name of outputfile based on what catalog events has been used")
-parser.add_argument("--eventsType", default="BBH", type=str, required=True, help="description of type of events used. AllCompactObject or BBH")
-parser.add_argument("--min-median-mass", default=3.0, type=float, required=True, help="For only BBH events use 3.0 or large, for all events including BNS or NSBH use smaller than 3.0 value what is suitable 1.0")
-parser.add_argument('--pathdata', default='./', type=str, help='directory to save data file')
+parser.add_argument("--o2filesname", nargs='+', help="List of paths to O1 and O2 PE eventname.h5 files")
+parser.add_argument("--o3afilesname", nargs='+', help="List of paths to O3a PE eventname.h5 files only comoving frame")
+parser.add_argument("--o3bfilesname", nargs='+', help="List of paths to O3b PE eventname.h5 files only comoving frame")
+parser.add_argument("--tag", default="GWTC3", required=True, help="String to label output file")
+parser.add_argument("--inverse-chieff-prior-weight", action='store_true', help="If given, weight samples by the inverse of the PE prior over chi_eff")
+parser.add_argument("--eventsType", default="BBH", required=True, help="description of type of events used. AllCompactObject or BBH")
+parser.add_argument("--min-median-mass", default=3.0, type=float, required=True, help="If eventType BBH is chosen, remove events with one or both component median masses below given value")
+parser.add_argument('--pathdata', default='./', help='directory to save data file')
 opts = parser.parse_args()
+
+# Empty list if any set of files is not specified
+if opts.o2filesname is None:
+    opts.o2filesname = []
+if opts.o3afilesname is None:
+    opts.o3afilesname = []
+if opts.o3bfilesname is None:
+    opts.o3bfilesname = []
 
 
 def compute_statistics(data):
@@ -34,20 +37,31 @@ def compute_statistics(data):
         "std": np.std(data)
     }
 
-def sample_random_indices(data_length, num_samples, seed):
+
+def sample_random_indices(data_length, num_samples, seed, weights=None):
     """Get random sample indices with a consistent seed."""
     rng = np.random.default_rng(seed)
-    return rng.choice(np.arange(data_length), num_samples)
+
+    if weights is None:
+        return rng.choice(np.arange(data_length), num_samples)
+    # Use weights : normalize for safety
+    sample_p = weights / np.sum(weights, dtype=float)
+    return rng.choice(np.arange(data_length), num_samples, p=sample_p)
+
 
 # Initialize storage
-event_data = {
-    "names": [],
-    "datam1src": {"median": [], "mean": [], "std": [], "samples": []},
-    "datam2src": {"median": [], "mean": [], "std": [], "samples": []},
-    "data_dL": {"median": [], "mean": [], "std": [], "samples": []},
-    "data_redshift": {"median": [], "mean": [], "std": [], "samples": []},
-    "data_xieff": {"median": [], "mean": [], "std": [], "samples": []}
+par_names = {
+             'mass_1_source': 'm1src',
+             'mass_2_source': 'm2src',
+             'luminosity_distance': 'dL',
+             'redshift': 'redshift',
+             'chi_eff': 'chieff',
 }
+
+event_data = {"names": [],}
+for p in opts.parameters:
+    # nested dicts
+    event_data[par_names[p]] = {"median": [], "mean": [], "std": [], "samples": []}
 
 
 def path_leaf(path):
@@ -58,7 +72,7 @@ def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
 
-#### Function for 100 PE samples KDEs ###
+
 def sampledata(d):
     """
     given a dictionary d
@@ -68,6 +82,7 @@ def sampledata(d):
     nd = dict(d)
     return np.concatenate([nd[key] for key in nd.keys()])
 
+# TD : function does not seem to be used
 # For bootstrap case:
 def randomsampledata(d):
     """
@@ -85,7 +100,7 @@ def randomsampledata(d):
     #choose randomly set of arrays in list of arrays
     return np.concatenate(random_arr)
 
-##################
+
 def gwdata_save(datfilename, eventslist, pesamplelists, meanxi, sigmaxi):
     """
     give file name and from input options of gw files
@@ -113,124 +128,119 @@ def gwdata_save(datfilename, eventslist, pesamplelists, meanxi, sigmaxi):
 
 
 for f in opts.o2filesname:
-    eventnamef  = os.path.splitext(path_leaf(opts.pathh5files + f))[0]
-    print(eventnamef)
-    dat = h5py.File(opts.pathh5files + f, 'r')[eventnamef+'/posterior_samples']
-    #if BBH it must satisfy a criteria  otherwise continue
+    eventnamef = os.path.splitext(path_leaf(f))[0]
+    dat = h5py.File(f, 'r')[eventnamef+'/posterior_samples']
+    m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
+
+    # If the BBH option is given masses must satisfy a criterion otherwise continue
     if opts.eventsType == 'BBH':
-        m1vals, m2vals = dat['mass_1_source'], dat['mass_2_source']
-        m1med, m2med = np.percentile(m1vals,100*0.50), np.percentile(m2vals,100*0.50)
-        if (m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
-            print("This is a BBH event with GW name with m1, m2  = ", eventnamef, m1med, m2med)
-            # Generate random indices once for all parameters
-            random_indices = sample_random_indices(len(dat[opts.parameter1]), opts.rsample, opts.seed)
-
-            # Process each parameter
-            for param, key in zip(
-                [opts.parameter1, opts.parameter2, opts.parameter3, opts.parameter4, opts.parameter5],
-                ["datam1src", "datam2src", "data_dL", "data_redshift", "data_xieff"]
-            ):
-                data = dat[param].astype(float)
-                stats = compute_statistics(data)
-                samples = data[random_indices]
-                
-                event_data[key]["median"].append(stats["median"])
-                event_data[key]["mean"].append(stats["mean"])
-                event_data[key]["std"].append(stats["std"])
-                event_data[key]["samples"].append(samples)
-            
-            event_data["names"].append(eventnamef)
-
+        m1med, m2med = np.percentile(m1vals, 50), np.percentile(m2vals, 50)
+        if not(m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
+            print("This is a nonBBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            continue  # don't process the file
         else:
-            print("This is a nonBBH events with GW name with m1, m2 = ", eventnamef, m1med, m2med)
-            continue
+            print("This is a BBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+
+    # Generate random indices once for all parameters
+    if opts.inverse_chieff_prior_weight:
+        from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
+        chivals = dat['chi_eff'][:]
+        weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
+        print('chi_eff based weights cover', weights.min(), weights.max())
     else:
-        print("check event type option")
+        weights = None
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
+
+    # Process each parameter
+    for p in opts.parameters:
+        k = par_names[p]
+        data = dat[p].astype(float)
+        stats = compute_statistics(data)
+
+        event_data[k]["median"].append(stats["median"])
+        event_data[k]["mean"].append(stats["mean"])
+        event_data[k]["std"].append(stats["std"])
+        event_data[k]["samples"].append(data[random_idx])
+
+    event_data["names"].append(eventnamef)
 
 for f in opts.o3afilesname:
-    print("f", f)
-    eventnamef  = os.path.splitext(path_leaf(opts.pathh5files + f))[0]
-    print(eventnamef)
-    data = h5py.File(f, 'r')
-    dat = data['C01:Mixed/posterior_samples']
-    #if BBH it must satisfy a criteria  otherwise continue
+    eventnamef = os.path.splitext(path_leaf(f))[0]
+    dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
+    m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
+
+    # If the BBH option is given masses must satisfy a criterion otherwise continue
     if opts.eventsType == 'BBH':
-        m1vals, m2vals = dat['mass_1_source'], dat['mass_2_source']
-        m1med, m2med = np.percentile(m1vals,100*0.50), np.percentile(m2vals,100*0.50)
-        if (m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
-            print("This is a BBH event with GW name with m1, m2  = ", eventnamef, m1med, m2med)
-            # Generate random indices once for all parameters
-            random_indices = sample_random_indices(len(dat[opts.parameter1]), opts.rsample, opts.seed)
-            
-            # Process each parameter
-            for param, key in zip(
-                [opts.parameter1, opts.parameter2, opts.parameter3, opts.parameter4, opts.parameter5],
-                ["datam1src", "datam2src", "data_dL", "data_redshift", "data_xieff"]
-            ):
-                data = dat[param].astype(float)
-                stats = compute_statistics(data)
-                samples = data[random_indices]
-                
-                event_data[key]["median"].append(stats["median"])
-                event_data[key]["mean"].append(stats["mean"])
-                event_data[key]["std"].append(stats["std"])
-                event_data[key]["samples"].append(samples)
-            
-            event_data["names"].append(eventnamef)
+        m1med, m2med = np.percentile(m1vals, 50), np.percentile(m2vals, 50)
+        if not(m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
+            print("This is a nonBBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            continue  # don't process the file
         else:
-            print("This is a nonBBH events with GW name with m1, m2 = ", eventnamef, m1med, m2med)
-            continue
+            print("This is a BBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+
+    # Generate random indices once for all parameters
+    if opts.inverse_chieff_prior_weight:
+        from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
+        chivals = dat['chi_eff'][:]
+        weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
+        print('chi_eff based weights cover', weights.min(), weights.max())
     else:
-        print("check event type option")
+        weights = None
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
 
-if opts.useO3b:
-    for f in opts.o3bfilesname:
-        eventnamef  = os.path.splitext(path_leaf(opts.pathh5files + f))[0]
-        dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
-        ##if BBH it must satisfy a criteria  otherwise continue
-        if opts.eventsType == 'BBH':
-            m1vals, m2vals = dat['mass_1_source'], dat['mass_2_source']
-            m1med, m2med = np.percentile(m1vals,100*0.50), np.percentile(m2vals,100*0.50)
-            if (m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
-                print("This is a BBH event with GW name with m1, m2  = ", eventnamef, m1med, m2med)
-                # Generate random indices once for all parameters
-                random_indices = sample_random_indices(len(dat[opts.parameter1]), opts.rsample, opts.seed)
+    # Process each parameter
+    for p in opts.parameters:
+        k = par_names[p]
+        data = dat[p].astype(float)
+        stats = compute_statistics(data)
 
-                # Process each parameter
-                for param, key in zip(
-                    [opts.parameter1, opts.parameter2, opts.parameter3, opts.parameter4, opts.parameter5],
-                    ["datam1src", "datam2src", "data_dL", "data_redshift", "data_xieff"]
-                ):
-                    data = dat[param].astype(float)
-                    stats = compute_statistics(data)
-                    samples = data[random_indices]
+        event_data[k]["median"].append(stats["median"])
+        event_data[k]["mean"].append(stats["mean"])
+        event_data[k]["std"].append(stats["std"])
+        event_data[k]["samples"].append(data[random_idx])
 
-                    event_data[key]["median"].append(stats["median"])
-                    event_data[key]["mean"].append(stats["mean"])
-                    event_data[key]["std"].append(stats["std"])
-                    event_data[key]["samples"].append(samples)
+    event_data["names"].append(eventnamef)
 
-                event_data["names"].append(eventnamef)
+for f in opts.o3bfilesname:
+    eventnamef = os.path.splitext(path_leaf(f))[0]
+    dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
+    m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
 
-            else:
-                print("This is a nonBBH events with GW name with m1, m2 = ", eventnamef, m1med, m2med)
-                continue
+    # If the BBH option is given masses must satisfy a criterion otherwise continue
+    if opts.eventsType == 'BBH':
+        m1med, m2med = np.percentile(m1vals, 50), np.percentile(m2vals, 50)
+        if not(m1med >= opts.min_median_mass and m2med >= opts.min_median_mass):
+            print("This is a nonBBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
+            continue  # don't process the file
         else:
-            print("check event type option")
+            print("This is a BBH event with GW name with m1, m2 = ", eventnamef, m1med, m2med)
 
-# Save data files
-def save_gw_data(filename, names, samples, means, stds):
-    """Save GW data into a file."""
-    gwdata_save(
-        filename,
-        names,
-        samples,
-        means,
-        stds
-    )
+    # Generate random indices once for all parameters
+    if opts.inverse_chieff_prior_weight:
+        from priors_vectorize import chi_effective_prior_from_isotropic_spins as chieff_prior_iso_vec
+        chivals = dat['chi_eff'][:]
+        weights = 1./chieff_prior_iso_vec(m2vals/m1vals, opts.max_a, chivals)
+        print('chi_eff based weights cover', weights.min(), weights.max())
+    else:
+        weights = None
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
 
-save_gw_data(opts.tag+'_m1src.h5', event_data["names"], event_data["datam1src"]["samples"], event_data["datam1src"]["mean"], event_data["datam1src"]["std"])
-save_gw_data(opts.tag+'_m2src.h5', event_data["names"], event_data["datam2src"]["samples"], event_data["datam2src"]["mean"], event_data["datam2src"]["std"])
-save_gw_data(opts.tag+'_dl.h5', event_data["names"], event_data["data_dL"]["samples"], event_data["data_dL"]["mean"], event_data["data_dL"]["std"])
-save_gw_data(opts.tag+'_redshift.h5', event_data["names"], event_data["data_redshift"]["samples"], event_data["data_redshift"]["mean"], event_data["data_redshift"]["std"])
-save_gw_data(opts.tag+'_chieff.h5', event_data["names"], event_data["data_xieff"]["samples"], event_data["data_xieff"]["mean"], event_data["data_xieff"]["std"])
+    # Process each parameter
+    for p in opts.parameters:
+        k = par_names[p]
+        data = dat[p].astype(float)
+        stats = compute_statistics(data)
+
+        event_data[k]["median"].append(stats["median"])
+        event_data[k]["mean"].append(stats["mean"])
+        event_data[k]["std"].append(stats["std"])
+        event_data[k]["samples"].append(data[random_idx])
+
+    event_data["names"].append(eventnamef)
+
+
+gwdata_save(opts.tag+'_m1src.h5', event_data["names"], event_data["m1src"]["samples"], event_data["m1src"]["mean"], event_data["m1src"]["std"])
+gwdata_save(opts.tag+'_m2src.h5', event_data["names"], event_data["m2src"]["samples"], event_data["m2src"]["mean"], event_data["m2src"]["std"])
+gwdata_save(opts.tag+'_dl.h5', event_data["names"], event_data["dL"]["samples"], event_data["dL"]["mean"], event_data["dL"]["std"])
+gwdata_save(opts.tag+'_redshift.h5', event_data["names"], event_data["redshift"]["samples"], event_data["redshift"]["mean"], event_data["redshift"]["std"])
+gwdata_save(opts.tag+'_chieff.h5', event_data["names"], event_data["chieff"]["samples"], event_data["chieff"]["mean"], event_data["chieff"]["std"])
