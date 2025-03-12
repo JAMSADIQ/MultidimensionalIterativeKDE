@@ -52,18 +52,16 @@ def get_m1Xieff_at_m2_slice_plot(medianlist_m1, medianlist_xieff, m2_src_grid, m
     max_density = np.nanmax(data_slice)
     max_exp = np.floor(np.log10(max_density))  # Find the highest power of 10 below max_density
     contourlevels = 10 ** (max_exp - np.arange(4))[::-1]
-    vmin, vmax = contourlevels[0] , contourlevels[-1]# np.nanmax(KDE_slice)  # Min and max values for KDE
+    vmin, vmax = contourlevels[0] , max_density # np.nanmax(KDE_slice)  # Min and max values for KDE
     print("vmin, vmax is =", vmin, vmax)
     # Plot
     plt.figure(figsize=(8, 6))
-    norm = LogNorm(vmin=vmin, vmax=vmax)  # Apply log normalization
-    pcm = plt.pcolormesh(M1, XIEFF, data_slice, cmap='twilight_r', norm=norm, shading='auto')
+    norm_val = LogNorm(vmin=vmin, vmax=vmax)  # Apply log normalization
+    pcm = plt.pcolormesh(M1, XIEFF, data_slice, cmap='Purples', norm=norm_val, shading='auto')
     contours = plt.contour(M1,  XIEFF, data_slice, levels=contourlevels, colors='black', linewidths=0.5)
-    plt.clabel(contours, fmt="% .1e", colors='black', fontsize=8)
 
     # Colorbar
     cbar = plt.colorbar(pcm, label=colorbar_label)
-    cbar.set_ticks(contourlevels)
     plt.scatter(medianlist_m1, medianlist_xieff, color='blue', marker='+', s=20)
     plt.ylabel(r"$\chi_\mathrm{effective}$")
     plt.xlabel(r"$m_\mathrm{1,source} \,[M_\odot]$")
