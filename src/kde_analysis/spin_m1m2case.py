@@ -187,7 +187,7 @@ def prior_factor_function(samples, redshift_vals, redshift_prior_power):
     q_values =  m2_values/m1_values
     Xieff_prior = np.zeros(len(q_values))
     aMax = 0.999
-    Xieff_prior = spin_prior.chi_effective_prior_from_isotropic_spins(q_values, aMax , Xieff_values)
+    Xieff_prior = 1.0 #spin_prior.chi_effective_prior_from_isotropic_spins(q_values, aMax , Xieff_values)
 
     redshift_prior = (1. + redshift_vals)**redshift_prior_power
     # Compute and return the prior factor
