@@ -69,6 +69,21 @@ def integral_wrt_Xieff(KDE3D, VT3D, Xieff_grid, Nevents=69):
     integm1m2 = simpson(Rate3D, x=Xieff_grid, axis=2)
     return integm1m2
 
+def get_m_Xieff_rate_at_fixed_q(m1grid, m2grid, Xieffgrid, Rate3D, q=1.0):
+    """
+    q must be <=1  as m2 = q*m1mesh
+    given
+    """
+    M, XIEFf = np.meshgrid(m1grid, Xieffgrid, indexing='ij')
+    m2values = q*M #here can be issue
+    Rate2Dfixed_q = np.zeros_like(M)
+    #need interpolator
+    interpolator = RegularGridInterpolator((m1_src_grid, m2_src_grid, Xieff_grid), Rate3D, bounds_error=False, fill_value=None)
+    for ix, m1val in enumerate(m1grid):
+        for jx, Xieffval in enumerate(Xieffgrid):
+            Rate2D[ix, jx] = interpolator((m1val, m2_values[ix, jx], Xieffval))
+    return Rate2Dfixed_q
+
 
 def get_rate_m_oneD(m1_query, m2_query, Rate):
     ratem1 = np.zeros(len(m1_query))
