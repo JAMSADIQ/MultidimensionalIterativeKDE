@@ -275,33 +275,13 @@ u_plot.get_m_Xieff_plot(meanxi1, meanxi3, M, XIEFF, RateM1Xieff[discard:], iterN
 u_plot.get_m_Xieff_plot(meanxi2, meanxi3, M, XIEFF, RateM2Xieff[discard:], iterN=1, pathplot='./', plot_name='Rate', xlabel = 'm_2')
 
 #One D plot and Offset will go here
-fig, ax = plt.subplots(figsize=(8, 4.5))
-# Define colors
-color_m1 = 'royalblue'
-color_m2 = 'darkorange'
+u_plot.Rate_masses(m1_src_grid, m2_src_grid, ratem1_arr, ratem2_arr, pathplot='./')
+######offset Xieff plot ######################
+m_slice_values = [10, 15, 20, 25, 35, 45, 55, 70]
+u_plot.Xieff_offset_plot(m1_src_grid, Xieff_grid, m_slice_values, RateM1Xieff[discard:], offset_increment=5, m_label='m_1', pathplot='./')
+u_plot.Xieff_offset_plot(m1_src_grid, Xieff_grid, m_slice_values, RateM2Xieff[discard:], offset_increment=5, m_label='m_2', pathplot='./')
 
-# Plot m1 data
-median_m1 = np.median(ratem1_arr, axis=0)
-p5_m1 = np.percentile(ratem1_arr, 5., axis=0)
-p95_m1 = np.percentile(ratem1_arr, 95., axis=0)
-ax.plot(m1_src_grid, median_m1, color=color_m1, linewidth=2, label='m1')
-ax.fill_between(m1_src_grid, p5_m1, p95_m1, color=color_m1, alpha=0.3)
+    
 
-# Plot m2 data
-median_m2 = np.median(ratem2_arr, axis=0)
-p5_m2 = np.percentile(ratem2_arr, 5., axis=0)
-p95_m2 = np.percentile(ratem2_arr, 95., axis=0)
-ax.plot(m2_src_grid, median_m2, color=color_m2, linewidth=2, label='m2')
-ax.fill_between(m2_src_grid, p5_m2, p95_m2, color=color_m2, alpha=0.3)
 
-ax.set_xlim(4., 105.)
-ax.legend()
-ax.set_title(r'$\chi_\mathrm{eff} = 0$')
-ax.grid(True, ls="--")
-ax.set_ylabel(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m \mathrm{d}\chi_\mathrm{eff}[\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$', fontsize=14)
-ax.set_xlabel(r"$m$", fontsize=20)
-plt.semilogy()
-plt.tight_layout()
-plt.show()
 
-######offset plot ######################

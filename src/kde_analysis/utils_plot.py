@@ -36,6 +36,70 @@ rcParams["grid.alpha"] = 0.6
 
 dict_p = {'m1':'m_1', 'm2':'m_2', 'Xieff':'\chi_{eff}', 'chieff': '\chi_{eff}', 'DL':'D_L', 'logm1':'ln m_1', 'logm2': 'ln m_2', 'alpha':'\alpha'}
 ###########
+##OneD mass Rates
+def Rate_masses(m1_src_grid, m2_src_grid, ratem1_arr, ratem2_arr, pathplot='./'):
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    # Define colors
+    color_m1 = 'royalblue'
+    color_m2 = 'darkorange'
+
+    # Plot m1 data
+    median_m1 = np.median(ratem1_arr, axis=0)
+    p5_m1 = np.percentile(ratem1_arr, 5., axis=0)
+    p95_m1 = np.percentile(ratem1_arr, 95., axis=0)
+    ax.plot(m1_src_grid, median_m1, color=color_m1, linewidth=2, label='primary-mass')
+    ax.fill_between(m1_src_grid, p5_m1, p95_m1, color=color_m1, alpha=0.3)
+
+    # Plot m2 data
+    median_m2 = np.median(ratem2_arr, axis=0)
+    p5_m2 = np.percentile(ratem2_arr, 5., axis=0)
+    p95_m2 = np.percentile(ratem2_arr, 95., axis=0)
+    ax.plot(m2_src_grid, median_m2, color=color_m2, linewidth=2, label='secondary-mass')
+    ax.fill_between(m2_src_grid, p5_m2, p95_m2, color=color_m2, alpha=0.3)
+
+    ax.set_xlim(4., 105.)
+    ax.legend()
+    ax.grid(True, ls="--")
+    ax.set_ylabel(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m\mathrm{d}\chi_\mathrm{eff}[\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$', fontsize=14)
+    ax.set_xlabel(r"$m$", fontsize=20)
+    plt.semilogy()
+    plt.tight_layout()
+    plt.savefig(pathplot+"Rate_masses_Marginalized.png")
+    plt.close()
+    return 0
+
+########offset plot
+def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate2D_m_Xieff_list, offset_increment=5, m_label='m_1', pathplot='./'):
+    colormap = plt.cm.magma
+    norm = Normalize(vmin=min(m_slice_values), vmax=max(m_slice_values)+5)
+    offset = 0
+    plt.figure(figsize=(8, 8))
+    for i, m_val in enumerate(m_slice_values):
+        color = colormap(norm(m_slice_values[i]))
+        rateXieff_slice_m = []
+        idx = np.argmin(np.abs(m_grid -  m_val))
+        for rate in rate_m_Xieff:
+            slice_rate = rate[idx, :]
+            normalize = simpson(y=slice_rate, x=Xieff_grid)
+            prob = slicekde/normalize
+            rateXieff_slice_m.append(prob)
+        median = np.percentile(rateXieff_slice_m, 50., axis=0)
+        p05 = np.percentile(rateXieff_slice_m, 5., axis=0)
+        p95 = np.percentile(rateXieff_slice_m, 95., axis=0)
+        plt.plot(Xieff_grid, median+offset, color=color, linewidth=2,label=r'$'+m_label+'={0}$'.format(m1v))
+        plt.fill_between(Xieff_grid, p05+offset, p95+offset,color=color, alpha=0.3)
+        plt.axhline(y=offset, color='grey', linestyle='-.', alpha=0.5)
+        offset += offset_increment
+    plt.xlim(-0.72, 0.72)
+    plt.legend(loc=3)
+    plt.ylabel(r'$p(\chi_\mathrm{eff}| m_1)$ + offset', fontsize=20)
+    plt.xlabel(r"$\chi_\mathrm{eff}$", fontsize=20)
+    #plt.grid('False')
+    plt.yticks([]) #remove y-ticks
+    plt.tight_layout()
+    plt.savefig(pathplot+'offset_plot_Xieff_at'+m_label+'_slice.png')
+    plt.close()
+    return 0
 ############# m1-Xieff plot 2D slice plot
 def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, KDElist, iterN=1, pathplot='./', plot_name='KDE'):
     data_slice = np.percentile(KDElist, 50, axis=0)
