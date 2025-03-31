@@ -3,16 +3,14 @@ sys.path.append('pop-de/popde/')
 import density_estimate as d
 import adaptive_kde as ad
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 import argparse
 import h5py as h5
 from scipy.integrate import quad, simpson
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib import rcParams
-from matplotlib.colors import LogNorm, Normalize
 import utils_plot as u_plot
 
+#'''
 # Set Matplotlib parameters for consistent plotting
 rcParams.update({
     "text.usetex": True,
@@ -29,25 +27,24 @@ rcParams.update({
     "grid.linewidth": 1.0,
     "grid.alpha": 0.6
 })
+#'''
 
-
-#careful parsers 
 parser = argparse.ArgumentParser(description=__doc__)
 # Input files #maybe we should combine these three to one
 parser.add_argument('--datafilename1', help='h5 file containing N samples for m1for all gw bbh event')
-parser.add_argument('--datafilename2', help='h5  file containing N sample of parameter2 (m2) for each event, ')
-parser.add_argument('--datafilename3', help='h5  file containing N sample of dL for each event')
+parser.add_argument('--datafilename2', help='h5 file containing N samples of parameter2 (m2) for each event')
+parser.add_argument('--datafilename3', help='h5 file containing N samples of dL for each event')
 parser.add_argument('--parameter1', help='name of parameter which we use for x-axis for KDE', default='m1')
 parser.add_argument('--parameter2', help='name of parameter which we use for y-axis for KDE: m2', default='m2')
-parser.add_argument('--parameter3', help='name of parameter which we use for y-axis for KDE [can be Xieff, dL]', default='Xieff')
-parser.add_argument('--m1-min', default=5.0, type=float, help='Minimum value for primary mass m1.')
-parser.add_argument('--m1-max', default=100.0, type=float, help='Maximum value for primary mass m1.')
+parser.add_argument('--parameter3', help='name of parameter which we use for z-axis for KDE [can be Xieff, dL]', default='Xieff')
+parser.add_argument('--m1-min', default=3.0, type=float, help='Minimum value for primary mass m1.')
+parser.add_argument('--m1-max', default=105.0, type=float, help='Maximum value for primary mass m1.')
 parser.add_argument('--Npoints-masses', default=150, type=int, help='Number of points for KDE evaluation.')
 parser.add_argument('--Npoints-param3', default=100, type=int, help='Number of points for KDE evaluation.')
-parser.add_argument('--param2-min', default=4.95, type=float, help='Minimum value for parameter 2 if it is  m2, else if dL use 10')
-parser.add_argument('--param2-max', default=100.0, type=float, help='Maximum value for parameter 2 if it is m2 else if dL  use 10000')
-parser.add_argument('--param3-min', default=-1., type=float, help='Minimum value for parameter 3 if it is  dL, use 500 else if Xieff use -1')
-parser.add_argument('--param3-max', default=1., type=float, help='Maximum value for parameter 3 if it is dL use 8000 else if Xieff  use +1')
+parser.add_argument('--param2-min', default=3.0, type=float, help='Minimum value for parameter 2 if it is m2, else if dL use 10')
+parser.add_argument('--param2-max', default=105.0, type=float, help='Maximum value for parameter 2 if it is m2 else if dLuse 10000')
+parser.add_argument('--param3-min', default=-1., type=float, help='Minimum value for parameter 3 if it is dL, use 500 else if Xieff use -1')
+parser.add_argument('--param3-max', default=1., type=float, help='Maximum value for parameter 3 if it is dL use 8000 else if Xieff use +1')
 
 parser.add_argument('--discard', default=100, type=int, help=('discard first 100 iterations'))
 parser.add_argument('--NIterations', default=1000, type=int, help='Total number of iterations for the reweighting process.')
@@ -69,16 +66,15 @@ def integral_wrt_Xieff(KDE3D, VT3D, Xieff_grid, Nevents=69):
     integm1m2 = simpson(Rate3D, x=Xieff_grid, axis=2)
     return integm1m2
 
+
 def get_m_Xieff_rate_at_fixed_q(m1grid, m2grid, Xieffgrid, Rate3D, q=1.0):
     """
     q must be <=1  as m2 = q*m1mesh
-    given
     """
-    M, XIEFf = np.meshgrid(m1grid, Xieffgrid, indexing='ij')
-    m2values = q*M #here can be issue
+    M, _ = np.meshgrid(m1grid, Xieffgrid, indexing='ij')
+    m2values = q * M
     Rate2Dfixed_q = np.zeros_like(M)
-    #need interpolator
-    interpolator = RegularGridInterpolator((m1_src_grid, m2_src_grid, Xieff_grid), Rate3D, bounds_error=False, fill_value=None)
+    interpolator = RegularGridInterpolator((m1grid, m2grid, Xieffgrid), Rate3D, bounds_error=False, fill_value=None)
     for ix, m1val in enumerate(m1grid):
         Rate2Dfixed_q[ix, :] = interpolator((m1val, m2_values[ix, :], Xieffgrid))
     return Rate2Dfixed_q
