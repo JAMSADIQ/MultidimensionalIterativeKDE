@@ -86,16 +86,14 @@ def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate2D_m_Xieff_list, o
         median = np.percentile(rateXieff_slice_m, 50., axis=0)
         p05 = np.percentile(rateXieff_slice_m, 5., axis=0)
         p95 = np.percentile(rateXieff_slice_m, 95., axis=0)
-        plt.plot(Xieff_grid, median+offset, color=color, linewidth=2,label=r'$'+m_label+'={0}$'.format(m1v))
+        plt.plot(Xieff_grid, median+offset, color=color, linewidth=2,label=r'$'+m_label+'={0}$'.format(m_val))
         plt.fill_between(Xieff_grid, p05+offset, p95+offset,color=color, alpha=0.3)
         plt.axhline(y=offset, color='grey', linestyle='-.', alpha=0.5)
-        #in case we want plot titles on right with grey dashe line
-        #plt.text(0.75, offset, f"$m_1={m1v}$", fontsize=14, color=color, verticalalignment='center')
+        plt.text(-0.67, offset+0.7, "$"+m_label+"={0}$".format(m_val), fontsize=14, color='k', verticalalignment='center')
+        offset +=5
         offset += offset_increment
     plt.xlim(-0.72, 0.72)
-    #remove legend if use text and also color can be just k
-    plt.legend(loc=3)
-    plt.ylabel(r'$p(\chi_\mathrm{eff}| m_1)$ + offset', fontsize=20)
+    plt.ylabel(r'$p(\chi_\mathrm{eff}| '+m_label+')$ + offset', fontsize=20)
     plt.xlabel(r"$\chi_\mathrm{eff}$", fontsize=20)
     #plt.grid('False')
     plt.yticks([]) #remove y-ticks
