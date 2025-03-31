@@ -80,8 +80,7 @@ def get_m_Xieff_rate_at_fixed_q(m1grid, m2grid, Xieffgrid, Rate3D, q=1.0):
     #need interpolator
     interpolator = RegularGridInterpolator((m1_src_grid, m2_src_grid, Xieff_grid), Rate3D, bounds_error=False, fill_value=None)
     for ix, m1val in enumerate(m1grid):
-        Rate2D[ix, :] = interpolator((m1val, m2_values[ix, :], Xieff_grid[:]))
-            Rate2Dfixed_q[ix, jx] = interpolator((m1val, m2_values[ix, jx], Xieffval))
+        Rate2Dfixed_q[ix, :] = interpolator((m1val, m2_values[ix, :], Xieffgrid))
     return Rate2Dfixed_q
 
 
