@@ -11,16 +11,10 @@ from scipy.integrate import simpson
 >>>>>>> 629fe549e028ed7a2df81328618ce8d857c9db88
 from matplotlib import rcParams
 from matplotlib.colors import LogNorm, Normalize
-import matplotlib.colors as colors
 from matplotlib import cm
 import matplotlib.ticker as ticker
-import matplotlib.gridspec as gridspec
 from matplotlib.lines import Line2D
-import matplotlib.ticker as ticker
-import matplotlib.patches
 from matplotlib.patches import Rectangle
-import glob
-import deepdish as dd
 
 rcParams["text.usetex"] = True
 rcParams["font.serif"] = "Computer Modern"
@@ -38,8 +32,8 @@ rcParams["grid.linewidth"] = 1.
 rcParams["grid.alpha"] = 0.6
 
 
-
 dict_p = {'m1':'m_1', 'm2':'m_2', 'Xieff':'\chi_{eff}', 'chieff': '\chi_{eff}', 'DL':'D_L', 'logm1':'ln m_1', 'logm2': 'ln m_2', 'alpha':'\alpha'}
+
 ###########
 <<<<<<< HEAD
 ############# m1-Xieff plot 2D slice plot
@@ -336,7 +330,7 @@ def get_m1m2_at_xieff_slice_plot(medianlist_m1, medianlist_m2, xi_src_grid, xi_t
 
 
 ###################################
-def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}\, \,\, q^{1.26}$',save_name="pdet_power_law_m2_correct_mass_frame_m1_dL_scatter.png", pathplot='./', show_plot=False):
+def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}\, \,\, q^{1.26}$', save_name="pdet_power_law_m2_m1_dL_scatter.png", pathplot='./', show_plot=False):
     flat_pdetlist = flat_pdetlist/1e9
     plt.figure(figsize=(8,6))
     plt.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10 ,cmap='viridis', norm=LogNorm(vmin=min(flat_pdetlist), vmax=max(flat_pdetlist)))
@@ -743,7 +737,7 @@ def average2DlineardLrate_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', 
     return CI50
 
 
-def bandwidth_correlation(bwlist,  number_corr=100, error=0.02, param='bw', pathplot='./', log=True):
+def bandwidth_correlation(bwlist, number_corr=100, param='bw', pathplot='./', log=True):
     """
     change the number for when we want before and after 
     Make a scatter plot with some random 
@@ -751,24 +745,6 @@ def bandwidth_correlation(bwlist,  number_corr=100, error=0.02, param='bw', path
     scatter point bw[i]  vs bw[i+1]
     and also plot correlation coefficient 
     """
-#    listN = np.array(bwlist[:-1]) #from 0 to N-1 values of array
-#    listNp1 = np.array(bwlist[1:]) #1 to Nth (last value of array)
-#
-#    listN = np.random.lognormal(np.log(listN), error)
-#    listNp1 = np.random.lognormal(np.log(listNp1), error)
-#    plt.figure(figsize=(8,5))
-#    plt.scatter(listN , listNp1, marker= '+')
-#    plt.xlabel(param+" N")
-#    plt.ylabel(param+" N+1")
-#    plt.semilogy()
-#    plt.semilogx()
-#    if error > 0.0:
-#        plt.savefig(pathplot+param+"_correlation_scatter.png")
-#    else:
-#        plt.savefig(pathplot+param+"_correlation.png")
-#    plt.close()
-#
-    #new correlation
     Cxy  =  []
     iternumber = []
     for i in range(int(len(bwlist)/2)):
@@ -817,9 +793,6 @@ def bandwidth_correlation(bwlist,  number_corr=100, error=0.02, param='bw', path
     plt.savefig(pathplot+param+"CxyiterN.png", bbox_inches='tight')
     plt.close()
     return 0
-
-
-
 
 
 def corre_tom(series, before_use_buf=5, bufsize=100, quantity='bandwidths', log=True, pathplot='./'):
