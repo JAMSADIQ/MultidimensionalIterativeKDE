@@ -8,10 +8,9 @@ import pandas as pd
 def setup_grids():
     """Set up the parameter grids."""
     extended_grid = np.logspace(np.log10(5*5/105), np.log10(105), 299)
-    m1_grid = [3, 105]#extended_grid[124:]
-    m2_grid = [3, 105]#extended_grid[124:]
-    #chieff_grid = np.linspace(-1, 1, 100)
-    chieff_grid = np.linspace(-1, 1, 10)
+    m1_grid = extended_grid[124:]
+    m2_grid = extended_grid[124:]
+    chieff_grid = np.linspace(-1, 1, 100)
     return m1_grid, m2_grid, chieff_grid
 
 def initialize_calculator():
