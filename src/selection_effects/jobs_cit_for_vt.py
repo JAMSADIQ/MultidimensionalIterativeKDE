@@ -15,7 +15,7 @@ def setup_grids():
 
 def initialize_calculator():
     """Initialize the sensitive volume calculator."""
-    import new_o123_class_found_inj_general as u_pdet
+    import o123_class_found_inj_general as u_pdet
     run_fit = 'o3'
     run_dataset = 'o3'
     g = u_pdet.Found_injections(
