@@ -78,10 +78,10 @@ def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate2D_m_Xieff_list, o
         color = colormap(norm(m_slice_values[i]))
         rateXieff_slice_m = []
         idx = np.argmin(np.abs(m_grid -  m_val))
-        for rate in rate_m_Xieff:
+        for rate in rate2D_m_Xieff_list:
             slice_rate = rate[idx, :]
-            normalize = simpson(y=slice_rate, x=Xieff_grid)
-            prob = slicekde/normalize
+            normalize = simpson(y=slice_rate, x=Xieff_grid) #+ 1e-10 to avoid zero 
+            prob = slice_rate/normalize
             rateXieff_slice_m.append(prob)
         median = np.percentile(rateXieff_slice_m, 50., axis=0)
         p05 = np.percentile(rateXieff_slice_m, 5., axis=0)
@@ -90,15 +90,14 @@ def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate2D_m_Xieff_list, o
         plt.fill_between(Xieff_grid, p05+offset, p95+offset,color=color, alpha=0.3)
         plt.axhline(y=offset, color='grey', linestyle='-.', alpha=0.5)
         plt.text(-0.67, offset+0.7, "$"+m_label+"={0}$".format(m_val), fontsize=14, color='k', verticalalignment='center')
-        offset +=5
         offset += offset_increment
     plt.xlim(-0.72, 0.72)
     plt.ylabel(r'$p(\chi_\mathrm{eff}| '+m_label+')$ + offset', fontsize=20)
     plt.xlabel(r"$\chi_\mathrm{eff}$", fontsize=20)
-    #plt.grid('False')
+    plt.grid(False)
     plt.yticks([]) #remove y-ticks
     plt.tight_layout()
-    plt.savefig(pathplot+'offset_plot_Xieff_at'+m_label+'_slice.png')
+    plt.savefig(f"{pathplot}offset_plot_Xieff_at_{m_label}_slice.png")
     plt.close()
     return 0
 ############# m1-Xieff plot 2D slice plot
