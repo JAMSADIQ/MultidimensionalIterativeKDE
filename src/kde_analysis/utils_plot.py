@@ -4,6 +4,8 @@
 #import libraries
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy
+from scipy.integrate import simpson
 from matplotlib import rcParams
 from matplotlib.colors import LogNorm, Normalize
 import matplotlib.colors as colors
