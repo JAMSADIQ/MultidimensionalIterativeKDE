@@ -34,16 +34,17 @@ rcParams.update({
 
 
 parser = argparse.ArgumentParser(description=__doc__)
-# Input files #maybe we should combine these three to one
+# Input files
 parser.add_argument('--samples-dim1', help='h5 file containing N samples for m1 for each event')
 parser.add_argument('--samples-dim2', help='h5 file containing N samples of m2 for each event')
 parser.add_argument('--samples-dim3', help='h5 file containing N samples of Xieff for each event')
 parser.add_argument('--samples-redshift', help='h5 file containing N samples of redshift for each event')
-parser.add_argument('--samples-dl', help='h5file containing N samples of dL for each event')
+parser.add_argument('--samples-dl', help='h5 file containing N samples of dL for each event')
 parser.add_argument('--parameter1', help='name of KDE x axis parameter', default='m1')
 parser.add_argument('--parameter2', help='name of KDE y axis parameter', default='m2')
 parser.add_argument('--parameter3', help='name of KDE z axis parameter [can be Xieff, dL]', default='Xieff')
-parser.add_argument('--injectionfile',  help='H5 injection file from GWTC3 public data.', default='/home/reed.essick/rates+pop/o3-sensitivity-estimates/LIGO-T2100113-v12/endo3_bbhpop-LIGO-T2100113-v12.hdf5')
+parser.add_argument('--injectionfile',  help='h5 injection file from GWTC3 public data', default='/home/reed.essick/rates+pop/o3-sensitivity-estimates/LIGO-T2100113-v12/endo3_bbhpop-LIGO-T2100113-v12.hdf5')
+parser.add_argument('--samples-vt', help='h5 file containing VT calculated at each sample')
 # priors 
 #parser.add_argument('--xieff-prior-function', type=str, default='chi_effective_prior_from_isotropic_spins', help='prior function for xieff form priors.py file need to fix this.')
 parser.add_argument('--redshift-prior-power', type=float, default=2.0, help='If set, perform KDE in logarithmic space.')
@@ -62,7 +63,6 @@ parser.add_argument('--n-iterations', default=500, type=int, help='Total iterati
 
 #plots and saving data
 parser.add_argument('--pathplot', default='./', help='public_html path for plots', type=str)
-parser.add_argument('--pathtag', default='re-weight-bootstrap_', help='public_html path for plots', type=str)
 parser.add_argument('--output-filename', default='m1m2mXieff3Danalysis_', help='write a proper name of output hdf files based on analysis', type=str)
 opts = parser.parse_args()
 #####################################################################
@@ -352,7 +352,7 @@ eventlist = []
 sampleslists1 = []
 sampleslists2 = []
 sampleslists3 = []
-vth5file = h5.File("VTatposteriors_allevents.hdf5", "r+")
+vth5file = h5.File(opts.samples_vt, "a")  # create if file does not exist
 
 vtlists = []
 redshift_lists = []
@@ -497,21 +497,21 @@ iteralplist = []
 #### We want to save data for rate(m1, m2) in HDF file 
 frateh5 = h5.File(opts.output_filename+'_min_bw3_'+str(opts.min_bw3)+'_kde_iteration.hdf5', 'a')
 
-# Initialize buffer to store last 100 iterations of f(samples) for each event
+# Initialize buffer to store last Nbuffer iterations of f(samples) for each event
 samples_per_event = [len(event_list) for event_list in sampleslists3]
 num_events = len(meanxi1)
 buffers = [[] for _ in range(num_events)]
-for i in range(opts.n_iterations + discard):
+for i in range(opts.n_iterations + discard):  # eg 500 + 200
     rwsamples = []
     for eventid, (samplem1, samplem2, sample3, redshiftvals, vt_k) in enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshift_lists, vtlists)):
-        samples= np.vstack((samplem1, samplem2, sample3)).T
+        samples = np.vstack((samplem1, samplem2, sample3)).T
         event_kde = current_kde.evaluate_with_transf(samples)
         buffers[eventid].append(event_kde)
-        if i < discard + Nbuffer :
-            rwsample = get_reweighted_sample(samples, redshiftvals, vt_k, current_kde, bootstrap=opts.bootstrap_type,  prior_factor_kwargs=prior_kwargs)
-        else:
+        if i < discard + Nbuffer:  # eg if less than 200 + 100  :thinks:
+            rwsample = get_reweighted_sample(samples, redshiftvals, vt_k, current_kde, bootstrap=opts.bootstrap_type, prior_factor_kwargs=prior_kwargs)
+        else:  # start to reweight based on buffer if after discard + Nbuffer iterations, eg 200 + 100
             means_kde_event = np.mean(buffers[eventid][-Nbuffer:], axis=0)
-            #reweight based on events previous 100 KDEs median or mean
+            #reweight based on average of previous Nbuffer KDEs
             rwsample = buffer_reweighted_samples(samples, redshiftvals, vt_k, means_kde_event, bootstrap_choice=opts.bootstrap_type, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
     
@@ -534,19 +534,17 @@ for i in range(opts.n_iterations + discard):
     iterbwylist.append(bwy)
     iterbwzlist.append(bwz)
     iteralplist.append(shiftedalp)
-    #if i > discard and i%Nbuffer==0:
-    if i > 1 and i%Nbuffer==0:
-        iterstep = int(i)
-        print(iterstep)
-        u_plot.histogram_datalist(iterbwxlist[-Nbuffer:], dataname='bwx', pathplot=opts.pathplot, Iternumber=iterstep)
-        u_plot.histogram_datalist(iterbwylist[-Nbuffer:], dataname='bwy', pathplot=opts.pathplot, Iternumber=iterstep)
-        u_plot.histogram_datalist(iterbwzlist[-Nbuffer:], dataname='bwz', pathplot=opts.pathplot, Iternumber=iterstep)
-        u_plot.histogram_datalist(iteralplist[-Nbuffer:], dataname='alpha', pathplot=opts.pathplot, Iternumber=iterstep)
-        #######need to work on plots
-        #if opts.logkde:
+    if i > 1 and i % Nbuffer==0:
+        print(i)
+        u_plot.histogram_datalist(iterbwxlist[-Nbuffer:], dataname='bwx', pathplot=opts.pathplot, Iternumber=i)
+        u_plot.histogram_datalist(iterbwylist[-Nbuffer:], dataname='bwy', pathplot=opts.pathplot, Iternumber=i)
+        u_plot.histogram_datalist(iterbwzlist[-Nbuffer:], dataname='bwz', pathplot=opts.pathplot, Iternumber=i)
+        u_plot.histogram_datalist(iteralplist[-Nbuffer:], dataname='alpha', pathplot=opts.pathplot, Iternumber=i)
+
 frateh5.close()
 
 u_plot.bandwidth_correlation(iterbwxlist, number_corr=discard, pathplot=opts.pathplot+'bwx_')
 u_plot.bandwidth_correlation(iterbwylist, number_corr=discard, pathplot=opts.pathplot+'bwy_')
 u_plot.bandwidth_correlation(iterbwzlist, number_corr=discard, pathplot=opts.pathplot+'bwz_')
 u_plot.bandwidth_correlation(iteralplist, number_corr=discard, param='alpha', pathplot=opts.pathplot, log=False)
+
