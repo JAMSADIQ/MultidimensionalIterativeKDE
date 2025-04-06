@@ -32,7 +32,7 @@ def process_and_save_to_hdf(csv_filepath, hdf_filepath):
         # Data is complete, just reshape
         # Need to sort the data properly before reshaping
         df_sorted = df.sort_values(by=['m1', 'm2', 'chieff'])
-        VT_3Dgrid = df_sorted['VT'].values.reshape((len(m1grid), len(m2grid), len(Xigrid)))
+        VT_3Dgrid = df_sorted['VT'].values.reshape((len(m1grid), len(m2grid), len(cfgrid)))
     else:
         # Data is incomplete, need to use symmetry
         print(f"Warning: Data incomplete. Expected {expected_size} points, got {actual_size}. Using symmetry.")
@@ -42,20 +42,20 @@ def process_and_save_to_hdf(csv_filepath, hdf_filepath):
         for _, row in df.iterrows():
             i = np.where(m1grid == row['m1'])[0][0]
             j = np.where(m2grid == row['m2'])[0][0]
-            k = np.where(Xigrid == row['chieff'])[0][0]
+            k = np.where(cfgrid == row['chieff'])[0][0]
             data_dict[(i, j, k)] = row['VT']
 
         # Fill the array using symmetry where needed
         for i in range(len(m1grid)):
             for j in range(len(m2grid)):
-                for k in range(len(Xigrid)):
+                for k in range(len(cfgrid)):
                     if (i, j, k) in data_dict:
                         VT_3Dgrid[i, j, k] = data_dict[(i, j, k)]
                     elif (j, i, k) in data_dict:
                         VT_3Dgrid[i, j, k] = data_dict[(j, i, k)]
                     else:
                         raise ValueError(
-                            f"Missing data for m1={m1grid[i]}, m2={m2grid[j]}, chieff={Xigrid[k]} "
+                            f"Missing data for m1={m1grid[i]}, m2={m2grid[j]}, chieff={cfgrid[k]} "
                             "and no symmetric point available"
                         )
 
@@ -63,7 +63,7 @@ def process_and_save_to_hdf(csv_filepath, hdf_filepath):
     with h5py.File(hdf_filepath, 'w') as hf:
         hf.create_dataset('m1vals', data=m1grid)
         hf.create_dataset('m2vals', data=m1grid)  # As per your requirement, m2grid = m1grid
-        hf.create_dataset('xivals', data=Xigrid)
+        hf.create_dataset('xivals', data=cfgrid)
         hf.create_dataset('VT', data=VT_3Dgrid)
 
     print(f"Data successfully saved to {hdf_filepath}")
