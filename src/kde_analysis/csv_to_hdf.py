@@ -8,7 +8,7 @@ def process_and_save_to_hdf(csv_filepath, hdf_filepath):
     df = pd.read_csv(csv_filepath)
     
     # Verify the expected columns are present
-    expected_columns = ['m1', 'm2', 'Xieff', 'VT']
+    expected_columns = ['m1', 'm2', 'chieff', 'VT']
     if not all(col in df.columns for col in expected_columns):
         raise ValueError("CSV file must contain columns: m1, m2, Xieff, VT")
     
