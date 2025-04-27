@@ -219,7 +219,8 @@ def get_random_sample(original_samples, bootstrap='poisson'):
     """
     rng = np.random.default_rng()
     if bootstrap =='poisson':
-        reweighted_sample = rng.choice(original_samples, np.random.poisson(1))
+        # Do not repeat any PE sample
+        reweighted_sample = rng.choice(original_samples, np.random.poisson(1), replace=False)
     else:
         reweighted_sample = rng.choice(original_samples)
     return reweighted_sample
@@ -286,7 +287,8 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
 
     # Perform resampling with or without Poisson reweighting
     if bootstrap =='poisson':
-        reweighted_sample = rng.choice(original_samples, np.random.poisson(1), p=fpop_at_samples)
+        # Do not repeat any PE sample
+        reweighted_sample = rng.choice(original_samples, np.random.poisson(1), replace=False, p=fpop_at_samples)
     else:
         reweighted_sample = rng.choice(original_samples, p=fpop_at_samples)
 
@@ -352,7 +354,8 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals,
     rng = np.random.default_rng()
 
     if bootstrap_choice =='poisson':
-        reweighted_sample = rng.choice(sample, np.random.poisson(1), p=norm_mediankdevals)
+        # Do not repeat any PE sample
+        reweighted_sample = rng.choice(sample, np.random.poisson(1), replace=False, p=norm_mediankdevals)
     else:
         reweighted_sample = rng.choice(sample, p=norm_mediankdevals)
     return reweighted_sample
