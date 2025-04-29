@@ -500,6 +500,7 @@ print(sampleslists.shape)
 sample = np.vstack((meanxi1, meanxi2, meanxi3)).T
 ######################################################
 ################################################################################
+#change here for same resclaing in two dimensions
 def get_kde_obj_eval(sample, rescale_arr, alphachoice, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw_Xieff=0.01):
     maxRescale_Xieff = 1.0/minbw_Xieff
     #Apply m1-m2 symmetry in the samples before fitting
