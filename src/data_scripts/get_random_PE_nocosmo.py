@@ -163,7 +163,7 @@ for f in opts.o2filesname:
               f'Neff {Neff(weights):.1f}')
     else:
         weights = None
-    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, replace=opts.replace_samples, weights=weights)
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights, replace=opts.replace_samples)
 
     # Process each parameter
     for p in opts.parameters:
@@ -200,7 +200,7 @@ for f in opts.o3afilesname:
               f'Neff {Neff(weights):.1f}')
     else:
         weights = None
-    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, replace=opts.replace_samples, weights=weights)
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights, replace=opts.replace_samples)
 
     # Process each parameter
     for p in opts.parameters:
@@ -237,7 +237,7 @@ for f in opts.o3bfilesname:
               f'Neff {Neff(weights):.1f}')
     else:
         weights = None
-    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, replace=opts.replace_samples, weights=weights)
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights, replace=opts.replace_samples)
 
     # Process each parameter
     for p in opts.parameters:
