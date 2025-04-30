@@ -185,7 +185,7 @@ def get_random_sample(original_samples, bootstrap='poisson'):
 def get_reweighted_sample(original_samples, redshiftvals, vt_vals, fpop_kde, bootstrap='poisson', prior_factor=prior_factor_function, prior_factor_kwargs=None):
     """
     Generate reweighted random sample/samples from the original PE samples
-    
+
     This function adjusts the probability of each sample based on a kernel density estimate (KDE) for the population
     distribution, the prior factor, and detection probability values, and then performs the random resampling using 
     `np.random.choice`  with or without poisson sampling size
@@ -194,34 +194,33 @@ def get_reweighted_sample(original_samples, redshiftvals, vt_vals, fpop_kde, boo
     -----------
     original_samples : list or array-like
         The list or array of PE samples representing a set of events or observations.
-        
+
     redshiftvals : array-like
         The redshift values corresponding to the `original_samples`, used to compute prior factors.
-        
+
     vt_vals : array-like
         The sensitive volume time values for each sample, used to scale the KDE estimate.
-        
+
     fpop_kde : KDE object
         A kernel density estimate (KDE) object, such as a `GaussianKDE`, that models the population distribution.
         It is used to calculate the KDE at the sample points.
-        
+
     bootstrap : str, optional, default='poisson'
         The bootstrap method to use for resampling. Options:
         - 'poisson': Resampling is done with sample size drawn from a Poisson distribution with mean = 1.
-        - Any other value: Uniform random sampling 
-        
+        - Any other value: Uniform random sampling
+
     prior_factor : callable, optional, default=prior_factor_function
         A function that calculates the prior factor for each sample, typically dependent on the redshift.
         It adjusts the sample probabilities based on a non-uniform prior.
-        
+
     prior_factor_kwargs : dict, optional, default=None
         Additional keyword arguments to pass to the `prior_factor` function when calculating prior factors.
-        
 
     Returns:
     --------
     reweighted_sample : ndarray
-        randomly selected, reweighted sample/samples  from the `original_samples`. 
+        randomly selected, reweighted sample/samples from the `original_samples`.
     """
     # Ensure prior_factor_kwargs is a dictionary
     if prior_factor_kwargs is None:
