@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--parameters", nargs='+', default=['mass_1_source', 'mass_2_source', 'luminosity_distance', 'redshift', 'chi_eff'], help="names of params to retrieve from PE samples")
 parser.add_argument("--rsample", default=100, type=int, help="number of random samples")
 parser.add_argument("--seed", default=12345, type=int, help="Random seed")
+parser.add_argument("--replace-samples", action='store_true', help="Allow for replacement (repeated samples) when bootstrapping")
 parser.add_argument("--o2filesname", nargs='+', help="List of paths to O1 and O2 PE eventname.h5 files")
 parser.add_argument("--o3afilesname", nargs='+', help="List of paths to O3a PE eventname.h5 files only comoving frame")
 parser.add_argument("--o3bfilesname", nargs='+', help="List of paths to O3b PE eventname.h5 files only comoving frame")
@@ -39,15 +40,18 @@ def compute_statistics(data):
     }
 
 
-def sample_random_indices(data_length, num_samples, seed, weights=None):
-    """Get random sample indices with a consistent seed."""
+def sample_random_indices(data_length, num_samples, seed, weights=None, replace=False):
+    """
+    Get random sample indices with a consistent seed.
+    If replace=True, allow repeated samples.
+    """
     rng = np.random.default_rng(seed)
 
     if weights is None:
-        return rng.choice(np.arange(data_length), num_samples)
+        return rng.choice(np.arange(data_length), num_samples, replace=replace)
     # Use weights : normalize for safety
     sample_p = weights / np.sum(weights, dtype=float)
-    return rng.choice(np.arange(data_length), num_samples, p=sample_p)
+    return rng.choice(np.arange(data_length), num_samples, replace=replace, p=sample_p)
 
 
 # Initialize storage
@@ -83,9 +87,8 @@ def sampledata(d):
     nd = dict(d)
     return np.concatenate([nd[key] for key in nd.keys()])
 
-# TD : function does not seem to be used
-# For bootstrap case:
-def randomsampledata(d):
+# TD : this function does not seem to be used
+def randomsampledata(d, replace=False):
     """
     given a dictionary d
     return list random  values 
@@ -94,11 +97,11 @@ def randomsampledata(d):
      multiple times
     """
     nd = dict(d)
-    #create an ndarray arrays of array
+    # create an ndarray arrays of array
     arr = np.array([nd[key] for key in nd.keys()])
     rng = np.random.default_rng()
-    random_arr = rng.choice(arr, len(arr))
-    #choose randomly set of arrays in list of arrays
+    # choose randomly set of arrays in list of arrays
+    random_arr = rng.choice(arr, len(arr), replace=replace)
     return np.concatenate(random_arr)
 
 
@@ -160,7 +163,7 @@ for f in opts.o2filesname:
               f'Neff {Neff(weights):.1f}')
     else:
         weights = None
-    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights, replace=opts.replace_samples)
 
     # Process each parameter
     for p in opts.parameters:
@@ -197,7 +200,7 @@ for f in opts.o3afilesname:
               f'Neff {Neff(weights):.1f}')
     else:
         weights = None
-    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights, replace=opts.replace_samples)
 
     # Process each parameter
     for p in opts.parameters:
@@ -234,7 +237,7 @@ for f in opts.o3bfilesname:
               f'Neff {Neff(weights):.1f}')
     else:
         weights = None
-    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights)
+    random_idx = sample_random_indices(len(m1vals), opts.rsample, opts.seed, weights, replace=opts.replace_samples)
 
     # Process each parameter
     for p in opts.parameters:
