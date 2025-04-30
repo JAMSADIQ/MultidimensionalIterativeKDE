@@ -92,7 +92,7 @@ def get_rate_m_oneD(m1_query, m2_query, Rate):
         #print(rate_vals, m2_query[y_valid])
         ratem1[xid] = simpson(rate_vals, m2_query[y_valid])
     for yid, m2 in enumerate(m2_query):
-        x_valid = m1_query >= m2_query[yid]  # Only accept points with y <=
+        x_valid = m1_query >= m2_query[yid]
         rate_vals = Rate[x_valid, yid]
         ratem2[yid] = simpson(rate_vals,  m1_query[x_valid])
     return ratem1, ratem2

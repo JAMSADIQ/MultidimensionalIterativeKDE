@@ -32,8 +32,9 @@ rcParams["grid.alpha"] = 0.6
 dict_p = {'m1':'m_1', 'm2':'m_2', 'Xieff':'\chi_{eff}', 'chieff': '\chi_{eff}', 'DL':'D_L', 'logm1':'ln m_1', 'logm2': 'ln m_2', 'alpha':'\alpha'}
 
 
+###########
 ##OneD mass Rates
-def Rate_masses(m1_src_grid, m2_src_grid, ratem1_arr, ratem2_arr, tag='', pathplot='./'):
+def get_1d_mass_plot(m1_src_grid, m2_src_grid, ratem1_arr, ratem2_arr, tag='', pathplot='./'):
     fig, ax = plt.subplots(figsize=(8, 4.5))
     # Define colors
     color_m1 = 'royalblue'
@@ -53,8 +54,8 @@ def Rate_masses(m1_src_grid, m2_src_grid, ratem1_arr, ratem2_arr, tag='', pathpl
     ax.plot(m2_src_grid, median_m2, color=color_m2, linewidth=2, label=r'$m_2$')
     ax.fill_between(m2_src_grid, p5_m2, p95_m2, color=color_m2, alpha=0.3)
 
-    ax.set_xlim(3., 105.)
-    ax.set_ylim(ymin=1e-4)
+    ax.set_xlim(3., 110.)
+    ax.set_ylim(ymin=3e-4, ymax=5)
     ax.legend()
     ax.grid(True, ls="--")
     ax.set_ylabel(r'$\mathrm{d}\mathcal{R}/\mathrm{d}m\,[\mathrm{Gpc}^{-3}\,\mathrm{yr}^{-1}\mathrm{M}_\odot^{-1}]$', fontsize=18)
@@ -64,6 +65,7 @@ def Rate_masses(m1_src_grid, m2_src_grid, ratem1_arr, ratem2_arr, tag='', pathpl
     plt.savefig(pathplot+"Rate_masses_1d_"+tag+".png")
     plt.close()
     return
+
 
 ########offset plot
 def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate_m_Xieff, offset_increment=5, m_label='m_1', tag='', pathplot='./'):
@@ -88,7 +90,7 @@ def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate_m_Xieff, offset_i
         plt.axhline(y=offset, color='grey', linestyle='-.', alpha=0.5)
         plt.text(-0.67, offset+0.7, "$"+m_label+"={0:.1f}$".format(m_val), fontsize=14, color='k', verticalalignment='center') 
         offset += offset_increment
-    plt.xlim(-0.72, 0.72)
+    plt.xlim(-0.75, 0.75)
     plt.ylabel(r"$p(\chi_\mathrm{eff}|"+m_label+")$ + offset", fontsize=20)
     plt.xlabel(r"$\chi_\mathrm{eff}$", fontsize=20)
     plt.grid('False')
@@ -98,54 +100,60 @@ def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate_m_Xieff, offset_i
     plt.close()
     return
 
+
 ############# m1m2 contour plot integrated over chieff
-def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, KDElist, itertag='', pathplot='./', plot_name='KDE'):
-    median_est = np.percentile(KDElist, 50, axis=0)
-    if plot_name=='Rate':
-        colorbar_label = r'$d \mathcal{R}/dm_1 dm_2 [\mathrm{Gpc}^{-3} \mathrm{yr}^{-1} M_\odot^{-2}] $'
+def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_est, timesM=False, itertag='', pathplot='./', plot_name='KDE'):
+    if timesM:
+        median_est *= (M1 * M2)
+    prefix = r'm_1m_2\,' if timesM else ''  # multiply by m for display
+    if plot_name == 'Rate':
+        colorbar_label = r'$'+prefix+r'd \mathcal{R}/dm_1 dm_2 [\mathrm{Gpc}^{-3} \mathrm{yr}^{-1} M_\odot^{-2}]$'
     else:
         colorbar_label = r'$p(m_1, m_2)$'
     max_density = np.max(median_est)
-    max_exp = np.floor(np.log10(max_density))  # Find the highest power of 10 below max_density
-    contourlevels = 10 ** (max_exp - np.arange(4))[::-1]
+    max_exp = np.floor(2. * np.log10(max_density))  # Find the highest power of 10 below max_density
+    contourlevels = 10 ** (0.5 * (max_exp - np.arange(7))[::-1])
 
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(8, 6.4))
     norm1 = LogNorm(vmin=contourlevels[0], vmax=max_density)  # Apply log normalization
     pcm = plt.pcolormesh(M1, M2, median_est, cmap='Purples', norm=norm1, shading='auto')
     contours = plt.contour(M1, M2, median_est, levels=contourlevels, colors='black', linewidths=1, norm=LogNorm()) 
     cbar = plt.colorbar(pcm, label=colorbar_label)
 
-    plt.fill_between(np.arange(0, 105), np.arange(0, 105), 105, color='white', alpha=1, zorder=50)
+    plt.fill_between(np.arange(3.01, 109.5), np.arange(3.01, 109.5), 109.5, color='white', alpha=1, zorder=50)
     plt.scatter(medianlist_m1, medianlist_m2, color='r', marker='+', s=20)
     plt.xlabel(r"$m_\mathrm{1} \,[M_\odot]$")
     plt.ylabel(r"$m_\mathrm{2} \,[M_\odot]$")
     plt.tick_params(axis='y', which='both', left=False, right=True, labelleft=False, labelright=True)
     plt.loglog()
-    plt.xlim(3, 105)
-    plt.ylim(3, 105)
+    plt.xlim(3, 110)
+    plt.ylim(3, 110)
     plt.tight_layout()
     plt.savefig(pathplot+'m1_m2'+plot_name+'int_wrt_Xieff_'+itertag+'.png')
     plt.close()
     return
 
 
-def get_m_Xieff_plot(medianlist_m1, medianlist_xieff, M1, XIEFF, KDElist, itertag='', pathplot='./', plot_name='KDE', xlabel='m_1'):
-    median_est = np.percentile(KDElist, 50, axis=0)
+def get_m_Xieff_plot(medianlist_m1, medianlist_xieff, M, XIEFF, medianKDE, timesM=False, itertag='', pathplot='./', plot_name='KDE', xlabel='m_1'):
     # Set colorbar label based on plot_name
+    prefix = xlabel if timesM else ''  # multiply by m for display
     if plot_name == 'Rate':
-        colorbar_label = r'$d \mathcal{R}/d'+ xlabel+'d \chi_\mathrm{eff}[\mathrm{Gpc}^{-3} \mathrm{yr}^{-1} M_\odot^{-1}] $'
+        colorbar_label = r'$'+prefix+r'd \mathcal{R}/d'+ xlabel+'d \chi_\mathrm{eff}[\mathrm{Gpc}^{-3} \mathrm{yr}^{-1} M_\odot^{-1}] $'
     else:
         colorbar_label = r'$p(' + xlabel + ', \chi_\mathrm{eff})$'
 
-    max_density = np.nanmax(median_est)
+    if timesM:
+        print('Multiplying by', xlabel)
+        medianKDE = medianKDE * M
+    max_density = np.nanmax(medianKDE)
     max_exp = np.floor(np.log10(max_density))  # Highest power of 10 below max_density
     contourlevels = 10 ** (max_exp - np.arange(4))[::-1] 
 
     # Plot
     plt.figure(figsize=(8, 6))
     norm_val = LogNorm(vmin=contourlevels[0], vmax=max_density)
-    pcm = plt.pcolormesh(M1, XIEFF, median_est, cmap='Purples', norm=norm_val, shading='auto')
-    contours = plt.contour(M1, XIEFF, median_est, levels=contourlevels, colors='black', linewidths=1)
+    pcm = plt.pcolormesh(M, XIEFF, medianKDE, cmap='Purples', norm=norm_val, shading='auto')
+    contours = plt.contour(M, XIEFF, medianKDE, levels=contourlevels, colors='black', linewidths=1)
     cbar = plt.colorbar(pcm, label=colorbar_label)
 
     plt.scatter(medianlist_m1, medianlist_xieff, color='r', marker='+', s=20)
@@ -153,8 +161,11 @@ def get_m_Xieff_plot(medianlist_m1, medianlist_xieff, M1, XIEFF, KDElist, iterta
     plt.ylabel(r"$\chi_\mathrm{eff}$")
     plt.xlabel(r'$' + xlabel + r'\,[M_\odot]$')
     plt.semilogx()
+    plt.xlim(4, 110)
+
     plt.tight_layout()
-    plt.savefig(pathplot+xlabel+"_chieff_"+plot_name+"_"+itertag+"_.png")
+    times = 'times_m_' if timesM else ''
+    plt.savefig(pathplot+xlabel+"_chieff_"+plot_name+"_"+times+itertag+".png")
     plt.close()
     return
 
