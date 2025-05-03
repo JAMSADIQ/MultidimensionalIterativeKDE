@@ -469,7 +469,7 @@ print("min max dL =", np.min(flat_samples3), np.max(flat_samples3))
 # Create the scatter plot for pdet save with 3D analysis name
 u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',save_name="pdet_3Dm1m2dL_correct_mass_frame_m1_dL_scatter.png", pathplot=opts.pathplot, show_plot=False)
 #special plot with z on right y axis
-u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3/1000, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, \mathrm{source}} [M_\odot]$', ylabel=r'$d_L [\mathr{Gpc}]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1dL_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
+u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3/1000, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, \mathrm{source}} [M_\odot]$', ylabel=r'$d_L [\mathrm{Gpc}]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1dL_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
 
 # Create the scatter plot for pdet 
 u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2dL_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
