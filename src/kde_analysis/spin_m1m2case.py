@@ -1,10 +1,7 @@
 import sys
-sys.path.append('pop-de/popde/')
 import argparse
 import h5py as h5
 import numpy as np
-import density_estimate as d
-import adaptive_kde as ad
 import priors_vectorize as spin_prior
 #from matplotlib import use
 #use('agg')
@@ -13,6 +10,7 @@ from matplotlib import rcParams
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
+from popde import density_estimate as d, adaptive_kde as ad
 from cbc_pdet import o123_class_found_inj_general as u_pdet
 
 # Set Matplotlib parameters for consistent plotting
@@ -434,13 +432,13 @@ def mchirp_from_mass1_mass2(mass1, mass2):
 
 Mchirp = mchirp_from_mass1_mass2(flat_samples1, flat_samples2) 
 #u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$VT$',save_name="VT_3Dm1m2dLXieff_correct_mass_frame_m1_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=True)
-u_plot.plot_pdetscatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M}_\mathrm{chirp}$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$VT$',save_name="VT_3Dm1m2dLXieff_mc_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=True)
-u_plot.plot_pdetscatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$VT$',save_name="VT_3Dm1m2dLXieff_q_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=False)
+u_plot.plot_pdetscatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M}$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_3Dm1m2dLXieff_mc_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=True)
+u_plot.plot_pdetscatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_3Dm1m2dLXieff_q_Xieff_scatter.png", pathplot=opts.pathplot, show_plot=False)
 
 #special plot with z on right y axis
-u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_vtlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1Xieff_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
+#u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3, flat_vtlist, flat_sample_z, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$\chi_\mathrm{effective}$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1Xieff_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
 
-# Create the scatter plot for pdet 
+# 3d pdet scatter plot
 u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_vtlist, save_name="pdet_m1m2Xieff_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
 
 ##########################################

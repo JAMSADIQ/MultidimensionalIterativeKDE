@@ -1,8 +1,5 @@
 import sys
 import matplotlib
-sys.path.append('pop-de/popde/')
-import density_estimate as d
-import adaptive_kde as ad
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -17,6 +14,7 @@ from matplotlib.colors import LogNorm, Normalize
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
+from popde import density_estimate as d, adaptive_kde as ad
 import o123_class_found_inj_general as u_pdet
 
 # Set Matplotlib parameters for consistent plotting
