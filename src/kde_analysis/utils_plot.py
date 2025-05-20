@@ -103,21 +103,21 @@ def Xieff_offset_plot(m_grid, Xieff_grid, m_slice_values, rate_m_Xieff, offset_i
 
 ############# m1m2 contour plot integrated over chieff
 def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_est, timesM=False, itertag='', pathplot='./', plot_name='KDE'):
-    if timesM:
-        median_est *= (M1 * M2)
+    factor = M1 * M2 if timesM else 1.
+    median_to_plot = median_est * factor
     prefix = r'm_1m_2\,' if timesM else ''  # multiply by m for display
     if plot_name == 'Rate':
         colorbar_label = r'$'+prefix+r'd \mathcal{R}/dm_1 dm_2 [\mathrm{Gpc}^{-3} \mathrm{yr}^{-1} M_\odot^{-2}]$'
     else:
         colorbar_label = r'$p(m_1, m_2)$'
-    max_density = np.max(median_est)
+    max_density = np.max(median_to_plot)
     max_exp = np.floor(2. * np.log10(max_density))  # Find the highest power of 10 below max_density
-    contourlevels = 10 ** (0.5 * (max_exp - np.arange(7))[::-1])
+    contourlevels = 10 ** (0.5 * (max_exp - np.arange(6))[::-1])
 
     plt.figure(figsize=(8, 6.4))
     norm1 = LogNorm(vmin=contourlevels[0], vmax=max_density)  # Apply log normalization
-    pcm = plt.pcolormesh(M1, M2, median_est, cmap='Purples', norm=norm1, shading='auto')
-    contours = plt.contour(M1, M2, median_est, levels=contourlevels, colors='black', linewidths=1, norm=LogNorm()) 
+    pcm = plt.pcolormesh(M1, M2, median_to_plot, cmap='Purples', norm=norm1, shading='auto')
+    contours = plt.contour(M1, M2, median_to_plot, levels=contourlevels, colors='black', linewidths=1, norm=LogNorm())
     cbar = plt.colorbar(pcm, label=colorbar_label)
 
     plt.fill_between(np.arange(3.01, 109.5), np.arange(3.01, 109.5), 109.5, color='white', alpha=1, zorder=50)
@@ -130,6 +130,43 @@ def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_est, times
     plt.ylim(3, 110)
     plt.tight_layout()
     plt.savefig(pathplot+'m1_m2'+plot_name+'int_wrt_Xieff_'+itertag+'.png')
+    plt.close()
+    return
+
+
+def color_m1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_val, median_rate, timesM=False, itertag='', pathplot='./', plot_name='meanchi'):
+    #from matplotlib import colormaps
+    factor = M1 * M2 if timesM else 1.
+    median_to_plot = median_rate * factor
+    prefix = r'm_1m_2\,' if timesM else ''  # multiply by m for display
+    if plot_name == 'meanchi':
+        cmap='coolwarm'
+        vmin, vmax = -0.25, 0.25
+        colorbar_label = r'$\langle\chi_\mathrm{eff}\rangle(m_1, m_2)$'
+    elif plot_name == 'stdchi':
+        cmap='Purples'
+        vmin, vmax = 0.05, 0.4
+        colorbar_label = r'$\sigma(\chi_\mathrm{eff})(m_1, m_2)$'
+    max_density = np.max(median_to_plot)
+    max_exp = np.floor(2. * np.log10(max_density))  # Find the highest power of 10 below max_density
+    contourlevels = 10 ** (0.5 * (max_exp - np.arange(6))[::-1])
+
+    plt.figure(figsize=(8, 6.4))
+    #pcm = plt.pcolormesh(M1, M2, map_colors, shading='auto')
+    pcm = plt.pcolormesh(M1, M2, median_val, cmap=cmap, vmin=vmin, vmax=vmax, shading='auto')
+    contours = plt.contour(M1, M2, median_to_plot, levels=contourlevels, colors='black', linewidths=1)
+    cbar = plt.colorbar(pcm, label=colorbar_label)
+
+    plt.fill_between(np.arange(3.01, 109.5), np.arange(3.01, 109.5), 109.5, color='white', alpha=1, zorder=50)
+    #plt.scatter(medianlist_m1, medianlist_m2, color='r', marker='+', s=20)
+    plt.xlabel(r"$m_\mathrm{1} \,[M_\odot]$")
+    plt.ylabel(r"$m_\mathrm{2} \,[M_\odot]$")
+    plt.tick_params(axis='y', which='both', left=False, right=True, labelleft=False, labelright=True)
+    plt.loglog()
+    plt.xlim(3, 110)
+    plt.ylim(3, 110)
+    plt.tight_layout()
+    plt.savefig(pathplot+'m1m2_'+plot_name+'_'+itertag+'.png')
     plt.close()
     return
 
@@ -299,20 +336,22 @@ def get_m1m2_at_xieff_slice_plot(medianlist_m1, medianlist_m2, xi_src_grid, xi_t
 
 
 ###################################
-def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}\, \,\, q^{1.26}$', save_name="pdet_power_law_m2_m1_dL_scatter.png", pathplot='./', show_plot=False):
+def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$', save_name="pdet_scatter.png", pathplot='./', show_plot=False):
     flat_pdetlist = flat_pdetlist/1e9
     plt.figure(figsize=(8,6))
     plt.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10 ,cmap='viridis', norm=LogNorm(vmin=min(flat_pdetlist), vmax=max(flat_pdetlist)))
     cbar = plt.colorbar(label=r'$p_\mathrm{det}$')
-    #cbar.set_label(r'$p_\mathrm{det}$', fontsize=20)
-    cbar.set_label(r'$\mathrm{VT} [\mathrm{Gpc}^3\mathrm{yr}]$', fontsize=20)
+    if title == r'$p_\mathrm{det}$':
+        cbar.set_label(r'$p_\mathrm{det}$', fontsize=20)
+    elif title == r'$VT$':
+        cbar.set_label(r'$\mathrm{VT} [\mathrm{Gpc}^3\,\mathrm{yr}]$', fontsize=20)
     plt.xlabel(xlabel, fontsize=20)
     plt.ylabel(ylabel, fontsize=20)
     plt.semilogx()
     #plt.title(title, fontsize=20)
     plt.tight_layout()
     plt.savefig(pathplot+save_name)
-    if show_plot ==True:
+    if show_plot == True:
         plt.show()
     plt.close()
     return
