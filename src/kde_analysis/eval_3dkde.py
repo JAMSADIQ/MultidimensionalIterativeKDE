@@ -1,7 +1,4 @@
 import sys
-sys.path.append('pop-de/popde/')
-import density_estimate as d
-import adaptive_kde as ad
 import numpy as np
 import argparse
 import h5py as h5
@@ -9,6 +6,7 @@ from scipy.integrate import quad, simpson
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib import rcParams
 import utils_plot as u_plot
+from popde import density_estimate as d, adaptive_kde as ad
 
 #'''
 # Set Matplotlib parameters for consistent plotting
@@ -61,13 +59,16 @@ opts = parser.parse_args()
 Nev = 69
 
 #################Integration functions######################
-def integral_wrt_Xieff(KDE3D, VT3D, Xieff_grid, Nevents):
+def integral_wrt_chieff(KDE3D, VT3D, cf_mesh, cf_grid, Nevents):
     """
     KDE3d and VT3d are computed with indexing ='ij' way
     """
     Rate3D = Nevents * KDE3D / VT3D
-    integm1m2 = simpson(Rate3D, x=Xieff_grid, axis=2)
-    return integm1m2
+    integm1m2 = simpson(Rate3D, x=cf_grid, axis=2)
+    integchi_m1m2 = simpson(Rate3D * cf_mesh, x=cf_grid, axis=2)
+    integchisq_m1m2 = simpson(Rate3D * cf_mesh * cf_mesh, x=cf_grid, axis=2)
+
+    return integm1m2, integchi_m1m2, integchisq_m1m2
 
 
 def get_m_Xieff_rate_at_fixed_q(m1grid, m2grid, Xieffgrid, Rate3D, q=1.0):
@@ -186,7 +187,7 @@ kde3d_list = [] #if needed
 for i in range(opts.end_iter - opts.start_iter):
     it = i + opts.discard + opts.start_iter
     ilabel = i + opts.start_iter
-    if it % 2 == 0: print(it)
+    if it % 5 == 0: print(it)
     iter_name = f'iteration_{it}'
     if iter_name not in hdf:
         print(f"Iteration {it} not found in file.")
@@ -225,7 +226,7 @@ for i in range(opts.end_iter - opts.start_iter):
     Rate3D = Nev * KDE_slice / VT_3D
     kdeM1Xieff, kdeM2Xieff = get_rate_m_Xieff2D(m1grid, m2grid, KDE_slice)
     rateM1Xieff, rateM2Xieff = get_rate_m_Xieff2D(m1grid, m2grid, Rate3D)
-    Ratem1m2 = integral_wrt_Xieff(KDE_slice, VT_3D, cfgrid, Nev)
+    ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(KDE_slice, VT_3D, CF, cfgrid, Nev)
 
     KDEM1Xieff.append(kdeM1Xieff)
     KDEM2Xieff.append(kdeM2Xieff)
@@ -233,7 +234,10 @@ for i in range(opts.end_iter - opts.start_iter):
     RateM2Xieff.append(rateM2Xieff)
     rate_m1m2IntXieff.append(Ratem1m2)
 
-    savehfintegm1m2.create_dataset(f"ratem1m2_iter{ilabel}", data=Ratem1m2)
+    savehfintegm1m2.create_dataset(f"rate_m1m2_iter{ilabel}", data=ratem1m2)
+    savehfintegm1m2.create_dataset(f"rate_chim1m2_iter{ilabel}", data=ratechim1m2)
+    savehfintegm1m2.create_dataset(f"rate_chisqm1m2_iter{ilabel}", data=ratechisqm1m2)
+
     savehfintegm1Xieff.create_dataset(f"rate_m1xieff_iter{ilabel}", data=rateM1Xieff)
     savehfintegm2Xieff.create_dataset(f"rate_m2xieff_iter{ilabel}", data=rateM2Xieff)
 
@@ -260,15 +264,16 @@ print('Making plots')
 
 # Note I did not save and make plot for m1-m2KDE
 iter_tag = f"iter{opts.start_iter}_{opts.end_iter}"
-u_plot.get_averagem1m2_plot(med1, med2, M1, M2, rate_m1m2IntXieff, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate')
+med_m1m2rate = np.percentile(rate_m1m2IntXieff, 50, axis=0)
+u_plot.get_averagem1m2_plot(med1, med2, M1, M2, med_m1m2rate, timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate')
 
-u_plot.get_m_Xieff_plot(med1, med3, M, CF, KDEM1Xieff, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_1')
-u_plot.get_m_Xieff_plot(med2, med3, M, CF, KDEM2Xieff, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_2')
-u_plot.get_m_Xieff_plot(med1, med3, M, CF, RateM1Xieff, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_1')
-u_plot.get_m_Xieff_plot(med2, med3, M, CF, RateM2Xieff, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_2')
+u_plot.get_m_Xieff_plot(med1, med3, M, CF, np.percentile(KDEM1Xieff, 50, axis=0), itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_1')
+u_plot.get_m_Xieff_plot(med2, med3, M, CF, np.percentile(KDEM2Xieff, 50, axis=0), itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_2')
+u_plot.get_m_Xieff_plot(med1, med3, M, CF, np.percentile(RateM1Xieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_1')
+u_plot.get_m_Xieff_plot(med2, med3, M, CF, np.percentile(RateM2Xieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_2')
 
 # 1-d rate vs masses
-u_plot.Rate_masses(m1grid, m2grid, ratem1_arr, ratem2_arr, tag=iter_tag, pathplot=opts.pathplot)
+u_plot.get_1d_mass_plot(m1grid, m2grid, ratem1_arr, ratem2_arr, tag=iter_tag, pathplot=opts.pathplot)
 
 ######offset Xieff plot ######################
 m1_slice_values = np.array([10, 15, 20, 25, 35, 45, 55, 70])
