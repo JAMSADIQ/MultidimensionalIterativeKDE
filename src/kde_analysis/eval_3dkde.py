@@ -232,7 +232,7 @@ for i in range(opts.end_iter - opts.start_iter):
     KDEM2Xieff.append(kdeM2Xieff)
     RateM1Xieff.append(rateM1Xieff)
     RateM2Xieff.append(rateM2Xieff)
-    rate_m1m2IntXieff.append(Ratem1m2)
+    rate_m1m2IntXieff.append(ratem1m2)
 
     savehfintegm1m2.create_dataset(f"rate_m1m2_iter{ilabel}", data=ratem1m2)
     savehfintegm1m2.create_dataset(f"rate_chim1m2_iter{ilabel}", data=ratechim1m2)
@@ -245,7 +245,7 @@ for i in range(opts.end_iter - opts.start_iter):
     savehfintegm2Xieff.create_dataset(f"kde_m2xieff_iter{ilabel}", data=kdeM2Xieff)
 
     # get oneD output
-    rateM1, rateM2 = get_rate_m_oneD(m1grid, m2grid, Ratem1m2)
+    rateM1, rateM2 = get_rate_m_oneD(m1grid, m2grid, ratem1m2)
     ratem1_arr.append(rateM1)
     ratem2_arr.append(rateM2)
 

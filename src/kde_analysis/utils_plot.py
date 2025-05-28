@@ -16,12 +16,12 @@ from matplotlib.patches import Rectangle
 rcParams["text.usetex"] = True
 rcParams["font.serif"] = "Computer Modern"
 rcParams["font.family"] = "Serif"
-rcParams["xtick.labelsize"]=18
-rcParams["ytick.labelsize"]=18
-rcParams["xtick.direction"]="in"
-rcParams["ytick.direction"]="in"
-rcParams["legend.fontsize"]=18
-rcParams["axes.labelsize"]=18
+rcParams["xtick.labelsize"] = 18
+rcParams["ytick.labelsize"] = 18
+rcParams["xtick.direction"] = "in"
+rcParams["ytick.direction"] = "in"
+rcParams["legend.fontsize"] = 18
+rcParams["axes.labelsize"] = 18
 rcParams["axes.grid"] = True
 rcParams["grid.color"] = 'grey'
 rcParams["grid.linewidth"] = 1.
@@ -114,7 +114,7 @@ def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_est, times
     max_exp = np.floor(2. * np.log10(max_density))  # Find the highest power of 10 below max_density
     contourlevels = 10 ** (0.5 * (max_exp - np.arange(6))[::-1])
 
-    plt.figure(figsize=(8, 6.4))
+    fig = plt.figure(figsize=(8, 6.4))
     norm1 = LogNorm(vmin=contourlevels[0], vmax=max_density)  # Apply log normalization
     pcm = plt.pcolormesh(M1, M2, median_to_plot, cmap='Purples', norm=norm1, shading='auto')
     contours = plt.contour(M1, M2, median_to_plot, levels=contourlevels, colors='black', linewidths=1, norm=LogNorm())
@@ -125,6 +125,8 @@ def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_est, times
     plt.xlabel(r"$m_\mathrm{1} \,[M_\odot]$")
     plt.ylabel(r"$m_\mathrm{2} \,[M_\odot]$")
     plt.tick_params(axis='y', which='both', left=False, right=True, labelleft=False, labelright=True)
+    plt.tick_params(which='minor', direction='out', length=4, width=1)
+    plt.tick_params(which='major', direction='out', length=1, width=1)
     plt.loglog()
     plt.xlim(3, 110)
     plt.ylim(3, 110)
@@ -162,6 +164,8 @@ def color_m1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_val, median_rat
     plt.xlabel(r"$m_\mathrm{1} \,[M_\odot]$")
     plt.ylabel(r"$m_\mathrm{2} \,[M_\odot]$")
     plt.tick_params(axis='y', which='both', left=False, right=True, labelleft=False, labelright=True)
+    plt.tick_params(which='minor', direction='out', length=4, width=1)
+    plt.tick_params(which='major', direction='out', length=1, width=1)
     plt.loglog()
     plt.xlim(3, 110)
     plt.ylim(3, 110)
@@ -336,7 +340,7 @@ def get_m1m2_at_xieff_slice_plot(medianlist_m1, medianlist_m2, xi_src_grid, xi_t
 
 
 ###################################
-def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$', save_name="pdet_scatter.png", pathplot='./', show_plot=False):
+def plot_pdet_scatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$', save_name="pdet_scatter.png", pathplot='./', show_plot=False):
     flat_pdetlist = flat_pdetlist/1e9
     plt.figure(figsize=(8,6))
     plt.scatter(flat_samples1, flat_samples2, c=flat_pdetlist, s=10 ,cmap='viridis', norm=LogNorm(vmin=min(flat_pdetlist), vmax=max(flat_pdetlist)))
@@ -357,7 +361,7 @@ def plot_pdetscatter(flat_samples1, flat_samples2, flat_pdetlist, xlabel=r'$m_{1
     return
 
 
-def plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False): 
+def plot_pdet_3Dscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2dL_3Dscatter.png", pathplot='./', show_plot=False):
     from mpl_toolkits.mplot3d import Axes3D
     # 3D scatter plot
     fig = plt.figure(figsize=(10, 7))
@@ -595,14 +599,24 @@ def new2DKDE(XX, YY,  ZZ, Mv, z, saveplot=False, plot_label='KDE', title='median
     return
 
 
-def histogram_bwdata(datalist, dataname='bw',  pathplot='./', Iternumber=1):
+def histogram_bw(bws, dataname='bw',  pathplot='./', tag=1):
+    """
+    """
     plt.figure(figsize=(8,6))
     plt.xlabel(dataname, fontsize=15)
-    plt.hist(datalist, bins=20, color='red', fc='gray', histtype='step', alpha=0.8, density=True, label=dataname)
-    plt.xlim(0.01, 1)
-    plt.legend()
-    plt.title("Iter{0}".format(Iternumber))
-    plt.savefig(pathplot+dataname+"_histogramIter{0}.png".format(Iternumber), bbox_inches='tight')
+    bws = np.array(bws)
+    if 'bw' in dataname:  # use log spaced bins
+        plt.hist(bws, bins=np.logspace(np.log10(bws.min()), np.log10(bws.max()), 10), color='red', histtype='step', density=True)
+        plt.semilogx()
+        plt.xlim(0.7 * bws.min(), 1.4 * bws.max())
+    elif dataname == 'alpha':
+        plt.hist(bws, bins=np.linspace(0, 1, 15), color='red', histtype='step', density=True)
+        plt.xlim(0, 1)
+    else:
+        plt.hist(bws, bins=10, color='red', histtype='step', density=True)
+        plt.xlim(bws.min() - 0.1, bws.max() + 0.1)
+
+    plt.savefig(pathplot+dataname+f"_hist_iter{tag}.png", bbox_inches='tight')
     plt.close()
     return
 
@@ -713,15 +727,18 @@ def average2DlineardLrate_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', 
     return CI50
 
 
-def bandwidth_correlation(bwlist, number_corr=100, param='bw', pathplot='./', log=True):
+def bw_correlation(bwlist, number_corr=100, param='bw', pathplot='./', log=True):
     """
-    change the number for when we want before and after 
-    Make a scatter plot with some random 
-    error added to bwd 
-    scatter point bw[i]  vs bw[i+1]
-    and also plot correlation coefficient 
     """
-    Cxy  =  []
+    plt.figure()
+    plt.plot(bwlist, '+')
+    plt.grid(True)
+    plt.xlabel('Iteration')
+    plt.ylabel(param)
+    plt.savefig(pathplot+param+'_iters.png', bbox_inches='tight')
+    plt.close()
+
+    Cxy = []
     iternumber = []
     for i in range(int(len(bwlist)/2)):
         iternumber.append(i+1)
@@ -730,7 +747,6 @@ def bandwidth_correlation(bwlist, number_corr=100, param='bw', pathplot='./', lo
         else:
             M = np.corrcoef( np.log(bwlist[i+1: ]), np.log(bwlist[ :-i-1]))
         Cxy.append(M[0][1])
-    print([Cxy[i] for i in range(10)])
     plt.figure(figsize=(8,4))
     plt.plot(iternumber[number_corr:], Cxy[number_corr:],'+-')
     plt.xlabel('Number of iterations')
@@ -748,9 +764,8 @@ def bandwidth_correlation(bwlist, number_corr=100, param='bw', pathplot='./', lo
     plt.savefig(pathplot+param+"C01_iter_before_100.png", bbox_inches='tight')
     plt.close()
 
-
     #corrcoefficient
-    Cxy  =  []#[1.0]
+    Cxy = []
     #for i in range(number_corr, int(len(bwlist)/2)):
     for i in range(int(len(bwlist)/2)):
         if log == True:
