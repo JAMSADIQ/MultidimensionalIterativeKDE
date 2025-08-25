@@ -1,8 +1,5 @@
 import sys
 import matplotlib
-sys.path.append('pop-de/popde/')
-import density_estimate as d
-import adaptive_kde as ad
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -17,6 +14,7 @@ from matplotlib.colors import LogNorm, Normalize
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
+from popde import density_estimate as d, adaptive_kde as ad
 import o123_class_found_inj_general as u_pdet
 
 # Set Matplotlib parameters for consistent plotting
@@ -219,12 +217,8 @@ def get_random_sample(original_samples, bootstrap='poisson'):
     """
     rng = np.random.default_rng()
     if bootstrap =='poisson':
-<<<<<<< HEAD
-        reweighted_sample = rng.choice(original_samples, np.random.poisson(1))
-=======
         # Do not repeat any PE sample
         reweighted_sample = rng.choice(original_samples, np.random.poisson(1), replace=False)
->>>>>>> 629fe549e028ed7a2df81328618ce8d857c9db88
     else:
         reweighted_sample = rng.choice(original_samples)
     return reweighted_sample
@@ -291,12 +285,8 @@ def get_reweighted_sample(original_samples, redshiftvals, pdet_vals, fpop_kde, b
 
     # Perform resampling with or without Poisson reweighting
     if bootstrap =='poisson':
-<<<<<<< HEAD
-        reweighted_sample = rng.choice(original_samples, np.random.poisson(1), p=fpop_at_samples)
-=======
         # Do not repeat any PE sample
         reweighted_sample = rng.choice(original_samples, np.random.poisson(1), replace=False, p=fpop_at_samples)
->>>>>>> 629fe549e028ed7a2df81328618ce8d857c9db88
     else:
         reweighted_sample = rng.choice(original_samples, p=fpop_at_samples)
 
@@ -362,12 +352,8 @@ def New_median_bufferkdelist_reweighted_samples(sample, redshiftvals, pdet_vals,
     rng = np.random.default_rng()
 
     if bootstrap_choice =='poisson':
-<<<<<<< HEAD
-        reweighted_sample = rng.choice(sample, np.random.poisson(1), p=norm_mediankdevals)
-=======
         # Do not repeat any PE sample
         reweighted_sample = rng.choice(sample, np.random.poisson(1), replace=False, p=norm_mediankdevals)
->>>>>>> 629fe549e028ed7a2df81328618ce8d857c9db88
     else:
         reweighted_sample = rng.choice(sample, p=norm_mediankdevals)
     return reweighted_sample
@@ -481,11 +467,7 @@ print("min max dL =", np.min(flat_samples3), np.max(flat_samples3))
 # Create the scatter plot for pdet save with 3D analysis name
 u_plot.plot_pdetscatter(flat_samples1, flat_samples3, flat_pdetlist, xlabel=r'$m_{1, source} [M_\odot]$', ylabel=r'$d_L [Mpc]$', title=r'$p_\mathrm{det}$',save_name="pdet_3Dm1m2dL_correct_mass_frame_m1_dL_scatter.png", pathplot=opts.pathplot, show_plot=False)
 #special plot with z on right y axis
-<<<<<<< HEAD
-u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3/1000, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, \mathrm{source}} [M_\odot]$', ylabel=r'$d_L [\mathr{Gpc}]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1dL_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
-=======
 u_plot.plot_pdetscatter_m1dL_redshiftYaxis(flat_samples1, flat_samples3/1000, flat_pdetlist, flat_sample_z, xlabel=r'$m_{1, \mathrm{source}} [M_\odot]$', ylabel=r'$d_L [\mathrm{Gpc}]$', title=r'$p_\mathrm{det}$',  save_name="pdet_m1dL_redshift_right_yaxis.png", pathplot=opts.pathplot, show_plot=False)
->>>>>>> 629fe549e028ed7a2df81328618ce8d857c9db88
 
 # Create the scatter plot for pdet 
 u_plot.plotpdet_3Dm1m2dLscatter(flat_samples1, flat_samples2, flat_samples3, flat_pdetlist, save_name="pdet_m1m2dL_3Dscatter.png", pathplot=opts.pathplot, show_plot=False)
