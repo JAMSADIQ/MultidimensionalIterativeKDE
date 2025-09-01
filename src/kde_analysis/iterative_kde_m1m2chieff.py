@@ -103,11 +103,11 @@ def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
         bin_mask = (pe_log_m1 >= bins[i]) & (pe_log_m1 < bins[i + 1])
         max_dL = max_dL_per_bin[i]
         keep_mask = bin_mask & (pe_dL <= max_dL)
-
         filtered_pe_m1.extend(pe_m1[keep_mask])
         filtered_pe_dL.extend(pe_dL[keep_mask])
         filtered_indices.extend(np.where(keep_mask)[0])
 
+    print('keeping', len(filtered_indices), 'samples')
     return (
         np.array(filtered_pe_m1),
         np.array(filtered_pe_dL),
@@ -135,7 +135,6 @@ def prior_factor_function(samples, redshift_vals, redshift_prior_power):
         raise ValueError("Number of redshifts must match the number of samples.")
 
     #m1_values, m2_values, chieff_values = samples[:, 0], samples[:, 1],  samples[:, 2]
-    #q_values = m2_values/m1_values
     #aMax = 0.999  # Currently undoing the chi_eff prior when selecting samples from PE.
     chieff_prior = 1.0 #spin_prior.chi_effective_prior_from_isotropic_spins(q_values, aMax, Xieff_values)
 
@@ -310,25 +309,27 @@ elif opts.pdet_runs == 'o4':
     print('o4 approximation, pdet runs are', pdet.runs)
 vth5file = h5.File(opts.samples_vt, "a")  # create if file does not exist
 vtlists = []
+
 for k in d1.keys():
     eventlist.append(k)
 
     # These events' PE had some 'too-distant' samples with extremely small pdet
     if (k == 'GW190719_215514_mixed-nocosmo' or k == 'GW190805_211137_mixed-nocosmo'):
         z_val = dz[k][...]
-        m1_values = d1[k][...]
+        m1_val = d1[k][...]
         # Detector frame mass for pdet
         m1det_val = d1[k][...] * (1. + z_val)
         m2_val = d2[k][...]
         m2det_val = d2[k][...] * (1. + z_val)
-        d_Lval = ddL[k][...]
+        dL_val = ddL[k][...]
         chieff_val = d3[k][...]
 
         # clean data using injection mass/dL as reference
         with h5.File(opts.injectionfile, 'r') as f:
             injection_m1 = f['injections/mass1_source'][:]
             injection_dL = f['injections/distance'][:]
-        m1_val, d_Lval, idx = preprocess_data(injection_m1, injection_dL, m1_val, d_Lval, num_bins=10)
+        print('cleaning samples for', k)
+        m1_val, dL_val, idx = preprocess_data(injection_m1, injection_dL, m1_val, dL_val)
 
         m2_val = m2_val[idx]
         m1det_val = m1det_val[idx]
@@ -341,7 +342,7 @@ for k in d1.keys():
         m1det_val = d1[k][...] * (1. + z_val)
         m2_val = d2[k][...]
         m2det_val = d2[k][...] * (1. + z_val)
-        d_Lval = ddL[k][...]
+        dL_val = ddL[k][...]
         chieff_val = d3[k][...]
 
     try:
