@@ -446,6 +446,10 @@ current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_a
 print('Initial opt parameters', bws, alp)
 #get perpoint-bandwidths
 perpointbwds = current_kde.bandwidth
+#test it 
+geo_mean = np.prod(perpointbwds) ** (1/len(perpointbwds))
+print("global bandwith =", current_kde.global_bandwidth, "geometric mean of perpoint bandwidths =", geo_mean)
+
 # Save KDE parameters for each subsequent iteration in HDF file
 frateh5 = h5.File(opts.output_filename + '_kde_iteration.hdf5', 'a')
 
