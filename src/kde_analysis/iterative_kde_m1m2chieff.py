@@ -258,8 +258,23 @@ def get_kde_obj_eval(sample, bs_weights, rescale_arr, alpha, input_transf=('log'
     dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alpha, bounds=((0.01, 100), (0.01, 100), (0.01, 1./ minbw3), (0, 1)), disp=True)
     optbwds = 1. / dictopt[0:-1]
     optalpha = dictopt[-1]
+    # Now get the per-point bandwidths
+    if hasattr(kde_object, 'bandwidth') and kde_object.bandwidth is not None:
+        per_point_bandwidths = kde_object.bandwidth
+        print("numnber Per-point bandwidths:", len(per_point_bandwidths), len(sample))
+        print("Per-point bandwidths:", per_point_bandwidths)
+        print("Shape:", per_point_bandwidths.shape)
+    else:
+        print("Per-point bandwidths not available")
 
-    return kde_object, optbwds, optalpha
+    # manually calculate?
+    if kde_object.pilot_values is not None:
+        loc_bw_factor = kde_object._local_bandwidth_factor(kde_object.pilot_values)
+        manual_per_point_bw = kde_object.global_bandwidth / loc_bw_factor
+        print("Manually calculated per-point bandwidths:", manual_per_point_bw)
+
+
+    return kde_object, optbwds, optalpha, per_point_bandwidths
 
 
 #######################################################################
@@ -414,11 +429,11 @@ def mchirp_from_mass1_mass2(mass1, mass2):
     return eta_from_mass1_mass2(mass1, mass2)**(3./5) * (mass1 + mass2)
 
 Mchirp = mchirp_from_mass1_mass2(flat_samples1, flat_samples2)
-u_plot.plot_pdet_scatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M}$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_mc_chieff_scatter.png", pathplot=opts.pathplot)
-u_plot.plot_pdet_scatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_q_chieff_scatter.png", pathplot=opts.pathplot)
+#u_plot.plot_pdet_scatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M}$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_mc_chieff_scatter.png", pathplot=opts.pathplot)
+#u_plot.plot_pdet_scatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_q_chieff_scatter.png", pathplot=opts.pathplot)
 
 # 3D scatter plot
-u_plot.plot_pdet_3Dscatter(flat_samples1, flat_samples2, flat_samples3, flat_vtlist, save_name="pdet_m1m2chieff_3Dscatter.png", pathplot=opts.pathplot)
+#u_plot.plot_pdet_3Dscatter(flat_samples1, flat_samples2, flat_samples3, flat_vtlist, save_name="pdet_m1m2chieff_3Dscatter.png", pathplot=opts.pathplot)
 
 
 ##########################################
@@ -437,7 +452,7 @@ init_rescale = [3., 3., 3.]
 init_alpha = 0.5
 
 # First mean samples KDE (no weights)
-current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
+current_kde, bws, alp, perpointbwds = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 print('Initial opt parameters', bws, alp)
 
 # Save KDE parameters for each subsequent iteration in HDF file
@@ -469,12 +484,13 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
         boots_weights.append(rng.poisson(1))
 
     # Reassign current KDE to optimized estimate for this iteration
-    current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
+    current_kde, optbw, optalp, perpointbwds = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
     print("opt bw", optbw, "opt alpha", optalp)
     group = frateh5.create_group(f'iteration_{i}')
 
     # Save the data in the group
     group.create_dataset('rwsamples', data=np.array(rwsamples))
+    group.create_dataset('persample_bwfactor', data=np.array(perpointbwds))
     group.create_dataset('bootstrap_weights', data=np.array(boots_weights))
     group.create_dataset('alpha', data=optalp)
     group.create_dataset('bwx', data=optbw[0])
