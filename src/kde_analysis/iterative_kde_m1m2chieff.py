@@ -445,7 +445,7 @@ init_alpha = 0.5
 current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 print('Initial opt parameters', bws, alp)
 #get perpoint-bandwidths
-perpointbwds = current_kde.bandwidth
+perpointbwds = current_kde.bandwidth[:len(mean_sample)]
 #test it 
 geo_mean = np.prod(perpointbwds) ** (1/len(perpointbwds))
 print("global bandwith =", current_kde.global_bandwidth, "geometric mean of perpoint bandwidths =", geo_mean)
@@ -484,7 +484,7 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 
     #get perpoint bandwidth
-    perpointbwds = current_kde.bandwidth
+    perpointbwds = current_kde.bandwidth[:len(rwsamples)]
     group = frateh5.create_group(f'iteration_{i}')
 
     # Save the data in the group
