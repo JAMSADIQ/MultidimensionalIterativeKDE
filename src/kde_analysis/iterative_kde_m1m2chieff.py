@@ -4,14 +4,13 @@ import numpy as np
 from popde import density_estimate as d, adaptive_kde as ad
 import priors_vectorize as spin_prior
 from matplotlib import use
-use('agg')
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.colors import PowerNorm
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
-from cbc_pdet import gwtc_found_inj as pdet_fit
+from cbc_pdet import o123_class_found_inj_general  as pdet_fit
 
 
 # Set Matplotlib parameters
@@ -41,7 +40,7 @@ parser.add_argument('--samples-redshift', help='h5 file containing N samples of 
 parser.add_argument('--samples-dl', help='h5 file containing N samples of dL for each event')
 parser.add_argument('--samples-vt', help='h5 file containing VT calculated at each sample')
 parser.add_argument('--pdet-runs', help='Observing runs to derive VT from p_det fits for, eg "o123", "o4"')
-parser.add_argument('--injectionfile',  help='h5 injection file from GWTC3 public data', default='/home/reed.essick/rates+pop/o3-sensitivity-estimates/LIGO-T2100113-v12/endo3_bbhpop-LIGO-T2100113-v12.hdf5')
+parser.add_argument('--injectionfile',  help='h5 injection file from GWTC3 public data', default='/home/jsadiq/Research/J_Ana/cbc_pdet/cbc_pdet/endo3_bbhpop-LIGO-T2100113-v12.hdf5')
 
 # PE prior
 parser.add_argument('--redshift-prior-power', type=float, default=2.,
@@ -103,11 +102,11 @@ def preprocess_data(m1_injection, dL_injection, pe_m1, pe_dL, num_bins=10):
         bin_mask = (pe_log_m1 >= bins[i]) & (pe_log_m1 < bins[i + 1])
         max_dL = max_dL_per_bin[i]
         keep_mask = bin_mask & (pe_dL <= max_dL)
-
         filtered_pe_m1.extend(pe_m1[keep_mask])
         filtered_pe_dL.extend(pe_dL[keep_mask])
         filtered_indices.extend(np.where(keep_mask)[0])
 
+    print('keeping', len(filtered_indices), 'samples')
     return (
         np.array(filtered_pe_m1),
         np.array(filtered_pe_dL),
@@ -135,7 +134,6 @@ def prior_factor_function(samples, redshift_vals, redshift_prior_power):
         raise ValueError("Number of redshifts must match the number of samples.")
 
     #m1_values, m2_values, chieff_values = samples[:, 0], samples[:, 1],  samples[:, 2]
-    #q_values = m2_values/m1_values
     #aMax = 0.999  # Currently undoing the chi_eff prior when selecting samples from PE.
     chieff_prior = 1.0 #spin_prior.chi_effective_prior_from_isotropic_spins(q_values, aMax, Xieff_values)
 
@@ -308,27 +306,30 @@ elif opts.pdet_runs == 'o4':
     sensitivity = lambda m1, m2, chieff: \
                       pdet.sensitive_volume('o4', m1, m2, chieff, zmax=2.5)
     print('o4 approximation, pdet runs are', pdet.runs)
-vth5file = h5.File(opts.samples_vt, "a")  # create if file does not exist
+#vth5file = h5.File(opts.samples_vt, "a")  # create if file does not exist
+vth5file = h5.File("/home/jsadiq/Research/MassSpin/MultidimensionalIterativeKDE/data/processed/VT_12345_CFPRIOR_NOREP.hdf5", "a")  # create if file does not exist
 vtlists = []
+
 for k in d1.keys():
     eventlist.append(k)
 
     # These events' PE had some 'too-distant' samples with extremely small pdet
     if (k == 'GW190719_215514_mixed-nocosmo' or k == 'GW190805_211137_mixed-nocosmo'):
         z_val = dz[k][...]
-        m1_values = d1[k][...]
+        m1_val = d1[k][...]
         # Detector frame mass for pdet
         m1det_val = d1[k][...] * (1. + z_val)
         m2_val = d2[k][...]
         m2det_val = d2[k][...] * (1. + z_val)
-        d_Lval = ddL[k][...]
+        dL_val = ddL[k][...]
         chieff_val = d3[k][...]
 
         # clean data using injection mass/dL as reference
         with h5.File(opts.injectionfile, 'r') as f:
             injection_m1 = f['injections/mass1_source'][:]
             injection_dL = f['injections/distance'][:]
-        m1_val, d_Lval, idx = preprocess_data(injection_m1, injection_dL, m1_val, d_Lval, num_bins=10)
+        print('cleaning samples for', k)
+        m1_val, dL_val, idx = preprocess_data(injection_m1, injection_dL, m1_val, dL_val)
 
         m2_val = m2_val[idx]
         m1det_val = m1det_val[idx]
@@ -341,7 +342,7 @@ for k in d1.keys():
         m1det_val = d1[k][...] * (1. + z_val)
         m2_val = d2[k][...]
         m2det_val = d2[k][...] * (1. + z_val)
-        d_Lval = ddL[k][...]
+        dL_val = ddL[k][...]
         chieff_val = d3[k][...]
 
     try:
@@ -354,6 +355,8 @@ for k in d1.keys():
             vt_val[i] = sensitivity(m1_val[i], m2_val[i], chieff=chieff_val[i])
         vth5file.create_dataset(k, data=np.array(vt_val))
 
+    
+    print("check", len(m1_val), len(vt_val))
     vtlists.append(vt_val)
     sampleslists1.append(m1_val)
     sampleslists2.append(m2_val)
@@ -371,6 +374,7 @@ flat_samples1 = np.concatenate(sampleslists1).flatten()
 flat_samples2 = np.concatenate(sampleslists2).flatten()
 flat_samples3 = np.concatenate(sampleslists3).flatten()
 flat_vtlist = np.concatenate(vtlists).flatten()
+print("final check", len(flat_samples1), len(flat_vtlist))
 print("min max m1 =", np.min(flat_samples1), np.max(flat_samples1))
 print("min max m2 =", np.min(flat_samples2), np.max(flat_samples2))
 print("min max chieff =", np.min(flat_samples3), np.max(flat_samples3))
