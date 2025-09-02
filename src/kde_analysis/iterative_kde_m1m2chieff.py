@@ -10,7 +10,8 @@ from matplotlib.colors import PowerNorm
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
-from cbc_pdet import o123_class_found_inj_general  as pdet_fit
+from cbc_pdet import gwtc_found_inj  as pdet_fit
+#from cbc_pdet import o123_class_found_inj_general  as pdet_fit
 
 
 # Set Matplotlib parameters
@@ -321,8 +322,8 @@ elif opts.pdet_runs == 'o4':
     sensitivity = lambda m1, m2, chieff: \
                       pdet.sensitive_volume('o4', m1, m2, chieff, zmax=2.5)
     print('o4 approximation, pdet runs are', pdet.runs)
-#vth5file = h5.File(opts.samples_vt, "a")  # create if file does not exist
-vth5file = h5.File("/home/jsadiq/Research/MassSpin/MultidimensionalIterativeKDE/data/processed/VT_12345_CFPRIOR_NOREP.hdf5", "a")  # create if file does not exist
+vth5file = h5.File(opts.samples_vt, "a")  # create if file does not exist
+#vth5file = h5.File("/home/jsadiq/Research/MassSpin/MultidimensionalIterativeKDE/data/processed/VT_12345_CFPRIOR_NOREP.hdf5", "a")  # create if file does not exist
 vtlists = []
 
 for k in d1.keys():
