@@ -11,7 +11,6 @@ from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
 from cbc_pdet import gwtc_found_inj  as pdet_fit
-#from cbc_pdet import o123_class_found_inj_general  as pdet_fit
 
 
 # Set Matplotlib parameters
@@ -186,8 +185,10 @@ def get_reweighted_sample(rng, sample, redshiftvals, vt_vals, fpop_kde, prior_fa
     # Normalize :sum=1
     fpop_at_samples = frate_atsample / frate_atsample.sum()
 
-    # Reweighted random sample
-    return rng.choice(sample, p=fpop_at_samples)
+    # Get the selected index using weighted random sampling
+    selected_idx = rng.choice(len(sample), p=fpop_at_samples)
+    # Return both the selected sample and its corresponding vt_val
+    return sample[selected_idx], vt_vals[selected_idx]
 
 
 def buffer_reweighted_sample(rng, sample, redshiftvals, vt_vals, meanKDEevent, prior_factor=prior_factor_function, prior_factor_kwargs=None):
@@ -232,8 +233,12 @@ def buffer_reweighted_sample(rng, sample, redshiftvals, vt_vals, meanKDEevent, p
 
     # Normalize
     norm_mediankdevals = kde_by_vt / sum(kde_by_vt)
+    
+    # Get the selected index using weighted random sampling
+    selected_idx = rng.choice(len(sample), p=norm_mediankdevals)
+    # Return both the selected sample and its corresponding vt_val
+    return sample[selected_idx], vt_vals[selected_idx]
 
-    return rng.choice(sample, p=norm_mediankdevals)
 
 
 def get_kde_obj_eval(sample, bs_weights, rescale_arr, alpha, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw3=opts.min_bw3):
@@ -267,13 +272,6 @@ def get_kde_obj_eval(sample, bs_weights, rescale_arr, alpha, input_transf=('log'
         print("Shape:", per_point_bandwidths.shape)
     else:
         print("Per-point bandwidths not available")
-
-    # manually calculate?
-    if kde_object.pilot_values is not None:
-        loc_bw_factor = kde_object._local_bandwidth_factor(kde_object.pilot_values)
-        manual_per_point_bw = kde_object.global_bandwidth / loc_bw_factor
-        print("Manually calculated per-point bandwidths:", manual_per_point_bw)
-
 
     return kde_object, optbwds, optalpha, per_point_bandwidths
 
@@ -323,7 +321,6 @@ elif opts.pdet_runs == 'o4':
                       pdet.sensitive_volume('o4', m1, m2, chieff, zmax=2.5)
     print('o4 approximation, pdet runs are', pdet.runs)
 vth5file = h5.File(opts.samples_vt, "a")  # create if file does not exist
-#vth5file = h5.File("/home/jsadiq/Research/MassSpin/MultidimensionalIterativeKDE/data/processed/VT_12345_CFPRIOR_NOREP.hdf5", "a")  # create if file does not exist
 vtlists = []
 
 for k in d1.keys():
@@ -430,11 +427,11 @@ def mchirp_from_mass1_mass2(mass1, mass2):
     return eta_from_mass1_mass2(mass1, mass2)**(3./5) * (mass1 + mass2)
 
 Mchirp = mchirp_from_mass1_mass2(flat_samples1, flat_samples2)
-#u_plot.plot_pdet_scatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M}$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_mc_chieff_scatter.png", pathplot=opts.pathplot)
-#u_plot.plot_pdet_scatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_q_chieff_scatter.png", pathplot=opts.pathplot)
+u_plot.plot_pdet_scatter(Mchirp, flat_samples3, flat_vtlist, xlabel=r'$\mathcal{M}$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_mc_chieff_scatter.png", pathplot=opts.pathplot)
+u_plot.plot_pdet_scatter(flat_samples2/flat_samples1, flat_samples3, flat_vtlist, xlabel=r'$q$', ylabel=r'$\chi_\mathrm{eff}$', title=r'$VT$', save_name="VT_q_chieff_scatter.png", pathplot=opts.pathplot)
 
 # 3D scatter plot
-#u_plot.plot_pdet_3Dscatter(flat_samples1, flat_samples2, flat_samples3, flat_vtlist, save_name="pdet_m1m2chieff_3Dscatter.png", pathplot=opts.pathplot)
+u_plot.plot_pdet_3Dscatter(flat_samples1, flat_samples2, flat_samples3, flat_vtlist, save_name="pdet_m1m2chieff_3Dscatter.png", pathplot=opts.pathplot)
 
 
 ##########################################
@@ -467,6 +464,7 @@ rng = np.random.default_rng()
 for i in range(opts.n_iterations + discard):  # eg 500 + 200
     # Take 1 reweighted PE sample per event and weight it in KDE evaluation and optimization by a Poisson bootstrap factor
     rwsamples = []
+    rwvt_vals = []
     boots_weights = []
     # Loop over events
     for eventid, (samplem1, samplem2, sample3, redshiftvals, vt_k) in enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshiftlists, vtlists)):
@@ -476,13 +474,14 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
         buffers[eventid].append(event_kde)
 
         if i < discard + Nbuffer:  # eg if less than 200 + 100
-            rwsample = get_reweighted_sample(rng, samples, redshiftvals, vt_k, current_kde, prior_factor_kwargs=prior_kwargs)
+            rwsample, rwvt_val = get_reweighted_sample(rng, samples, redshiftvals, vt_k, current_kde, prior_factor_kwargs=prior_kwargs)
         else:  # start to reweight based on buffer
             # Use average of previous Nbuffer KDE evaluations on samples
             means_kde_event = np.mean(buffers[eventid][-Nbuffer:], axis=0)
-            rwsample = buffer_reweighted_sample(rng, samples, redshiftvals, vt_k, means_kde_event, prior_factor_kwargs=prior_kwargs)
+            rwsample, rwvt_val = buffer_reweighted_sample(rng, samples, redshiftvals, vt_k, means_kde_event, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
         boots_weights.append(rng.poisson(1))
+        rwvt_vals.append(rwvt_val)
 
     # Reassign current KDE to optimized estimate for this iteration
     current_kde, optbw, optalp, perpointbwds = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
@@ -492,6 +491,7 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     # Save the data in the group
     group.create_dataset('rwsamples', data=np.array(rwsamples))
     group.create_dataset('persample_bwfactor', data=np.array(perpointbwds))
+    group.create_dataset('rwvt_vals', data=np.array(rwvt_vals))
     group.create_dataset('bootstrap_weights', data=np.array(boots_weights))
     group.create_dataset('alpha', data=optalp)
     group.create_dataset('bwx', data=optbw[0])
