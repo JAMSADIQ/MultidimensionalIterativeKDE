@@ -264,16 +264,8 @@ def get_kde_obj_eval(sample, bs_weights, rescale_arr, alpha, input_transf=('log'
     dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alpha, bounds=((0.01, 100), (0.01, 100), (0.01, 1./ minbw3), (0, 1)), disp=True)
     optbwds = 1. / dictopt[0:-1]
     optalpha = dictopt[-1]
-    # Now get the per-point bandwidths
-    if hasattr(kde_object, 'bandwidth') and kde_object.bandwidth is not None:
-        per_point_bandwidths = kde_object.bandwidth
-        print("numnber Per-point bandwidths:", len(per_point_bandwidths), len(sample))
-        print("Per-point bandwidths:", per_point_bandwidths)
-        print("Shape:", per_point_bandwidths.shape)
-    else:
-        print("Per-point bandwidths not available")
 
-    return kde_object, optbwds, optalpha, per_point_bandwidths
+    return kde_object, optbwds, optalpha
 
 
 #######################################################################
@@ -450,9 +442,10 @@ init_rescale = [3., 3., 3.]
 init_alpha = 0.5
 
 # First mean samples KDE (no weights)
-current_kde, bws, alp, perpointbwds = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
+current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 print('Initial opt parameters', bws, alp)
-
+#get perpoint-bandwidths
+perpointbwds = current_kde.bandwidth
 # Save KDE parameters for each subsequent iteration in HDF file
 frateh5 = h5.File(opts.output_filename + '_kde_iteration.hdf5', 'a')
 
@@ -484,8 +477,10 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
         rwvt_vals.append(rwvt_val)
 
     # Reassign current KDE to optimized estimate for this iteration
-    current_kde, optbw, optalp, perpointbwds = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
-    print("opt bw", optbw, "opt alpha", optalp)
+    current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
+
+    #get perpoint bandwidth
+    perpointbwds = current_kde.bandwidth
     group = frateh5.create_group(f'iteration_{i}')
 
     # Save the data in the group
