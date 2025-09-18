@@ -46,6 +46,8 @@ parser.add_argument('--injectionfile',  help='h5 injection file from GWTC3 publi
 # PE prior
 parser.add_argument('--redshift-prior-power', type=float, default=2.,
                     help='PE prior to factor out is this power of (1+z)')
+parser.add_argument('--pe-chieff-prior', action='store_true',
+                    help='Reweight during analysis to remove PE prior over chieff. Default False')
 
 # Rescaling factor bounds [bandwidth]
 parser.add_argument('--min-bw3', default=0.01, type=float, help='Set a minimum bandwidth for the 3rd dimension')
@@ -58,7 +60,9 @@ parser.add_argument('--n-iterations', default=500, type=int, help='Total reweigh
 # Output
 parser.add_argument('--pathplot', default='./', help='public_html path for plots', type=str)
 parser.add_argument('--output-filename', required=True, help='name of analysis output hdf file', type=str)
-opts = parser.parse_args()
+
+opts = parser.parse_args()  # Use as global variable
+
 #####################################################################
 
 # Set the prior factors correctly here before reweighting
@@ -134,14 +138,16 @@ def prior_factor_function(samples, redshift_vals, redshift_prior_power):
     if len(redshift_vals) != len(samples):
         raise ValueError("Number of redshifts must match the number of samples.")
 
-    #m1_values, m2_values, chieff_values = samples[:, 0], samples[:, 1],  samples[:, 2]
-    #aMax = 0.999  # Currently undoing the chi_eff prior when selecting samples from PE.
-    chieff_prior = 1.0 #spin_prior.chi_effective_prior_from_isotropic_spins(q_values, aMax, Xieff_values)
+    if opts.pe_chieff_prior:
+        m1, m2, cf = samples[:, 0], samples[:, 1],  samples[:, 2]
+        aMax = 0.999
+        chieff_prior = spin_prior.chi_effective_prior_from_isotropic_spins(m2 / m1, aMax, cf)
+    else:
+        chieff_prior = 1.
 
     redshift_prior = (1. + redshift_vals) ** redshift_prior_power
-    # Compute and return the prior factor
-    prior_factors = 1.0 / (chieff_prior * redshift_prior)
 
+    prior_factors = 1. / (chieff_prior * redshift_prior)
     return prior_factors
 
 
@@ -175,19 +181,23 @@ def get_reweighted_sample(rng, sample, redshiftvals, vt_vals, fpop_kde, prior_fa
 
     Returns
     --------
-    (float)
-        Randomly selected, reweighted sample
+    (float), (array)
+        Randomly selected reweighted sample and array of weights
     """
+    # Ensure prior_factor_kwargs is a dictionary
+    if prior_factor_kwargs is None:
+        prior_factor_kwargs = {}
+
     # Evaluate the KDE estimate of the astrophysical population at samples
     fkde_samples = fpop_kde.evaluate_with_transf(sample) / vt_vals
 
     # Adjust probabilities based on the prior factor
     frate_atsample = fkde_samples * prior_factor(sample, redshiftvals, **prior_factor_kwargs)
-    # Normalize :sum=1
+    # Normalize
     fpop_at_samples = frate_atsample / frate_atsample.sum()
 
     # Reweighted random sample
-    return rng.choice(sample, p=fpop_at_samples)
+    return rng.choice(sample, p=fpop_at_samples), fpop_at_samples
 
 
 def buffer_reweighted_sample(rng, sample, redshiftvals, vt_vals, meanKDEevent, prior_factor=prior_factor_function, prior_factor_kwargs=None):
@@ -217,8 +227,8 @@ def buffer_reweighted_sample(rng, sample, redshiftvals, vt_vals, meanKDEevent, p
 
     Returns
     --------
-    (float)
-        Randomly selected, reweighted sample
+    (float), (array)
+        Randomly selected reweighted sample and array of weights
     """
     # Ensure prior_factor_kwargs is a dictionary
     if prior_factor_kwargs is None:
@@ -231,9 +241,9 @@ def buffer_reweighted_sample(rng, sample, redshiftvals, vt_vals, meanKDEevent, p
     kde_by_vt *= prior_factor(sample, redshiftvals, **prior_factor_kwargs)
 
     # Normalize
-    norm_mediankdevals = kde_by_vt / sum(kde_by_vt)
+    norm_meankdevals = kde_by_vt / sum(kde_by_vt)
 
-    return rng.choice(sample, p=norm_mediankdevals)
+    return rng.choice(sample, p=norm_meankdevals), norm_meankdevals
 
 
 def get_kde_obj_eval(sample, bs_weights, rescale_arr, alpha, input_transf=('log', 'log', 'none'), mass_symmetry=False, minbw3=opts.min_bw3):
@@ -256,7 +266,7 @@ def get_kde_obj_eval(sample, bs_weights, rescale_arr, alpha, input_transf=('log'
         bs_weights = np.concatenate((bs_weights, bs_weights)) if (bs_weights is not None) else None
 
     kde_object = ad.KDERescaleOptimization(sample, bs_weights, stdize=True, rescale=rescale_arr, alpha=alpha, dim_names=['lnm1', 'lnm2', 'chieff'], input_transf=input_transf)
-    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alpha, bounds=((0.01, 100), (0.01, 100), (0.01, 1./ minbw3), (0, 1)), disp=True)
+    dictopt, score = kde_object.optimize_rescale_parameters(rescale_arr, alpha, bounds=((0.01, 100), (0.01, 100), (0.01, 1./ minbw3), (0, 1)), disp=False)  # don't display messages
     optbwds = 1. / dictopt[0:-1]
     optalpha = dictopt[-1]
 
@@ -425,10 +435,6 @@ mean_sample = np.vstack((mean1, mean2, mean3)).T
 ### Iterative reweighting algorithm
 discard = opts.buffer_start   # how many iterations to discard
 Nbuffer = opts.buffer_interval # how many previous iterations to average over in reweighting
-iterbwx = []
-iterbwy = []
-iterbwz = []
-iteralp = []
 
 init_rescale = [3., 3., 3.]
 init_alpha = 0.5
@@ -437,8 +443,27 @@ init_alpha = 0.5
 current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 print('Initial opt parameters', bws, alp)
 
+def Neff(weights):
+    """
+    Effective sample size in importance sampling with given weights
+    """
+    w = np.array(weights)
+    return w.sum() ** 2. / (w ** 2.).sum()
+
+### Iterative reweighting algorithm
+
 # Save KDE parameters for each subsequent iteration in HDF file
 frateh5 = h5.File(opts.output_filename + '_kde_iteration.hdf5', 'a')
+
+# Store iteration statistics
+iterbwx = []
+iterbwy = []
+iterbwz = []
+iteralp = []
+iterminneff = []
+
+discard = opts.buffer_start   # how many iterations to discard
+Nbuffer = opts.buffer_interval # how many previous iterations to average over in reweighting
 
 # Initialize buffer to store last Nbuffer iterations of f(samples) for each event
 num_events = len(mean1)
@@ -448,26 +473,29 @@ rng = np.random.default_rng()
 for i in range(opts.n_iterations + discard):  # eg 500 + 200
     # Take 1 reweighted PE sample per event and weight it in KDE evaluation and optimization by a Poisson bootstrap factor
     rwsamples = []
+    rw_neff = []  # Effective number of samples from fpop/prior weighting
     boots_weights = []
     # Loop over events
-    for eventid, (samplem1, samplem2, sample3, redshiftvals, vt_k) in enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshiftlists, vtlists)):
+    for eventid, (samplem1, samplem2, sample3, redshiftvals, vt_k) in \
+            enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshiftlists, vtlists)):
         samples = np.vstack((samplem1, samplem2, sample3)).T
         # Determine weights for next draw by evaluating previous KDE on all samples
         event_kde = current_kde.evaluate_with_transf(samples)
         buffers[eventid].append(event_kde)
 
         if i < discard + Nbuffer:  # eg if less than 200 + 100
-            rwsample = get_reweighted_sample(rng, samples, redshiftvals, vt_k, current_kde, prior_factor_kwargs=prior_kwargs)
+            rwsample, rweights = get_reweighted_sample(rng, samples, redshiftvals, vt_k, current_kde, prior_factor_kwargs=prior_kwargs)
         else:  # start to reweight based on buffer
             # Use average of previous Nbuffer KDE evaluations on samples
             means_kde_event = np.mean(buffers[eventid][-Nbuffer:], axis=0)
-            rwsample = buffer_reweighted_sample(rng, samples, redshiftvals, vt_k, means_kde_event, prior_factor_kwargs=prior_kwargs)
+            rwsample, rweights = buffer_reweighted_sample(rng, samples, redshiftvals, vt_k, means_kde_event, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
+        rw_neff.append(Neff(rweights))
         boots_weights.append(rng.poisson(1))
 
     # Reassign current KDE to optimized estimate for this iteration
     current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
-    print("opt bw", optbw, "opt alpha", optalp)
+    print("opt bw", optbw, "opt alpha", optalp, 'Neff min/max', np.min(rw_neff), np.max(rw_neff), 'min Neff eventid', np.argmin(rw_neff))
     group = frateh5.create_group(f'iteration_{i}')
 
     # Save the data in the group
@@ -483,7 +511,8 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     iterbwy.append(optbw[1])
     iterbwz.append(optbw[2])
     iteralp.append(optalp)
-    if i > 1 and i % Nbuffer==0:
+    iterminneff.append(np.min(rw_neff))
+    if i > 1 and i % 100==0:
         print(i)
         u_plot.histogram_bw(iterbwx[-Nbuffer:], 'bwx', opts.pathplot, tag=i)
         u_plot.histogram_bw(iterbwy[-Nbuffer:], 'bwy', opts.pathplot, tag=i)
@@ -496,4 +525,5 @@ u_plot.bw_correlation(iterbwx, discard, 'bwx', opts.pathplot)
 u_plot.bw_correlation(iterbwy, discard, 'bwy', opts.pathplot)
 u_plot.bw_correlation(iterbwz, discard, 'bwz', opts.pathplot)
 u_plot.bw_correlation(iteralp, discard, 'alpha', opts.pathplot, log=False)
+u_plot.bw_correlation(iterminneff, discard, 'min(Neff)', opts.pathplot)
 
