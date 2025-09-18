@@ -478,6 +478,9 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     # Loop over events
     for eventid, (samplem1, samplem2, sample3, redshiftvals, vt_k) in \
             enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshiftlists, vtlists)):
+        event_boots_weight = rng.poisson(1)
+        if event_boots_weight == 0:  # Immediately discard cases with zero weight
+            continue
         samples = np.vstack((samplem1, samplem2, sample3)).T
         # Determine weights for next draw by evaluating previous KDE on all samples
         event_kde = current_kde.evaluate_with_transf(samples)
@@ -491,7 +494,7 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
             rwsample, rweights = buffer_reweighted_sample(rng, samples, redshiftvals, vt_k, means_kde_event, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
         rw_neff.append(Neff(rweights))
-        boots_weights.append(rng.poisson(1))
+        boots_weights.append(event_boots_weight)
 
     # Reassign current KDE to optimized estimate for this iteration
     current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
