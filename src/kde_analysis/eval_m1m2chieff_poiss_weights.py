@@ -50,11 +50,15 @@ opts = parser.parse_args()
 
 
 #################Integration functions######################
-def integral_wrt_chieff(KDE3D, VT3D, cf_mesh, cf_grid, Nevents):
+def integral_wrt_chieff(KDE3D, VT3D, cf_mesh, cf_grid, Nevents, weighted=False):
     """
     KDE3d and VT3d are computed with indexing 'ij' way
     """
-    Rate3D = Nevents * KDE3D / VT3D
+    if weighted:
+        Rate3D = Nevents * KDE3D
+    else:
+        Rate3D = Nevents * KDE3D / VT3D
+
     integm1m2 = simpson(Rate3D, x=cf_grid, axis=2)
     integchi_m1m2 = simpson(Rate3D * cf_mesh, x=cf_grid, axis=2)
     integchisq_m1m2 = simpson(Rate3D * cf_mesh * cf_mesh, x=cf_grid, axis=2)
@@ -204,6 +208,7 @@ for i in range(opts.end_iter - opts.start_iter):
     symmetric_samples = np.vstack((samples, samples2))
     # Double the weights for bootstrap uncertainty
     weights = np.concatenate((weights, weights)) if weighted else None
+    weights_byVT = np.concatenate((weights_byVT, weights_byVT)) if weighted else None
     #uncomment below if we only save per_sample_banwidth without symmetry
     #per_point_bandwidth  = np.tile(per_point_bandwidth, 2)
 
@@ -216,11 +221,25 @@ for i in range(opts.end_iter - opts.start_iter):
         alpha=alpha
     )
 
-    
+    # using per point bandwidth
+    train_weighted_kde = d.VariableBwKDEPy(
+        symmetric_samples,
+        #replace poisson-weights with poisson-weights/VT(sample)
+        weights= weights_byVT,
+        input_transf=('log', 'log', 'none'),
+        stdize=True,
+        rescale=[1/bwx, 1/bwy, 1/bwz],
+        bandwidth = per_point_bandwidth
+    )
     
     # Evaluate KDE on the evaluation samples
     eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
     KDE_slice = eval_kde3d.reshape(XX.shape)
+    #weighted KDE evaluation
+    eval_weighted_kde3d = train_kde.evaluate_with_transf(eval_samples)
+    weightedKDE_slice = eval_weighted_kde3d.reshape(XX.shape)
+    
+
     #if we need 3D output
     #kde_list.append(KDE_slice)
 
@@ -228,6 +247,12 @@ for i in range(opts.end_iter - opts.start_iter):
     kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_slice)
     rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate3D)
     ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(KDE_slice, VT_3D, CF, cfgrid, Nev)
+    
+    #for weightedKDE case
+    weightedRate3D = Nev * weightedKDE_slice 
+    kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, weightedKDE_slice)
+    WrateM1chieff, WrateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, weightedRate3D)
+    W_ratem1m2, W_ratechim1m2, W_ratechisqm1m2 = integral_wrt_chieff(weightedKDE_slice, VT_3D, CF, cfgrid, Nev, weighted=True)
 
     KDEM1chieff.append(kdeM1chieff)
     KDEM2chieff.append(kdeM2chieff)
