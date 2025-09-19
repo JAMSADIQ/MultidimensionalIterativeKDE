@@ -10,7 +10,8 @@ from matplotlib.colors import PowerNorm
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import utils_plot as u_plot
-from cbc_pdet import gwtc_found_inj  as pdet_fit
+#from cbc_pdet import gwtc_found_inj  as pdet_fit
+from cbc_pdet import o123_class_found_inj_general  as pdet_fit
 
 
 # Set Matplotlib parameters
@@ -40,7 +41,7 @@ parser.add_argument('--samples-redshift', help='h5 file containing N samples of 
 parser.add_argument('--samples-dl', help='h5 file containing N samples of dL for each event')
 parser.add_argument('--samples-vt', help='h5 file containing VT calculated at each sample')
 parser.add_argument('--pdet-runs', help='Observing runs to derive VT from p_det fits for, eg "o123", "o4"')
-parser.add_argument('--injectionfile',  help='h5 injection file from GWTC3 public data', default='/home/jsadiq/Research/J_Ana/cbc_pdet/cbc_pdet/endo3_bbhpop-LIGO-T2100113-v12.hdf5')
+parser.add_argument('--injectionfile',  help='h5 injection file from GWTC3 public data', default='endo3_bbhpop-LIGO-T2100113-v12.hdf5')
 
 # PE prior
 parser.add_argument('--redshift-prior-power', type=float, default=2.,
@@ -55,7 +56,7 @@ parser.add_argument('--buffer-interval', default=100, type=int, help='Size of bu
 parser.add_argument('--n-iterations', default=500, type=int, help='Total reweighting iterations after start of buffer')
 
 # Output
-parser.add_argument('--pathplot', default='./', help='public_html path for plots', type=str)
+parser.add_argument('--pathplot', default='./short', help='public_html path for plots', type=str)
 parser.add_argument('--output-filename', required=True, help='name of analysis output hdf file', type=str)
 opts = parser.parse_args()
 #####################################################################
@@ -445,11 +446,12 @@ init_alpha = 0.5
 current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 print('Initial opt parameters', bws, alp)
 #get perpoint-bandwidths
-perpointbwds = current_kde.bandwidth[:len(mean_sample)]
+perpointbwds = current_kde.bandwidth#[:len(mean_sample)]
 #test it 
 geo_mean = np.prod(perpointbwds) ** (1/len(perpointbwds))
 print("global bandwith =", current_kde.global_bandwidth, "geometric mean of perpoint bandwidths =", geo_mean)
 
+print(len(np.array(mean_sample)), len(perpointbwds))
 # Save KDE parameters for each subsequent iteration in HDF file
 frateh5 = h5.File(opts.output_filename + '_kde_iteration.hdf5', 'a')
 
@@ -465,6 +467,9 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     boots_weights = []
     # Loop over events
     for eventid, (samplem1, samplem2, sample3, redshiftvals, vt_k) in enumerate(zip(sampleslists1, sampleslists2, sampleslists3, redshiftlists, vtlists)):
+        event_boots_weight = rng.poisson(1)
+        if event_boots_weight == 0:
+            continue
         samples = np.vstack((samplem1, samplem2, sample3)).T
         # Determine weights for next draw by evaluating previous KDE on all samples
         event_kde = current_kde.evaluate_with_transf(samples)
@@ -477,14 +482,16 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
             means_kde_event = np.mean(buffers[eventid][-Nbuffer:], axis=0)
             rwsample, rwvt_val = buffer_reweighted_sample(rng, samples, redshiftvals, vt_k, means_kde_event, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
-        boots_weights.append(rng.poisson(1))
+        #boots_weights.append(rng.poisson(1))
+        boots_weights.append(event_boots_weight)
         rwvt_vals.append(rwvt_val)
 
     # Reassign current KDE to optimized estimate for this iteration
     current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 
     #get perpoint bandwidth
-    perpointbwds = current_kde.bandwidth[:len(rwsamples)]
+    perpointbwds = current_kde.bandwidth#[:len(rwsamples)]
+    print(len(np.array(rwsamples)), len(perpointbwds))
     group = frateh5.create_group(f'iteration_{i}')
 
     # Save the data in the group
