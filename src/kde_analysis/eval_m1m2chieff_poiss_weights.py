@@ -191,6 +191,8 @@ for i in range(opts.end_iter - opts.start_iter):
     bwx = group['bwx'][()]
     bwy = group['bwy'][()]
     bwz = group['bwz'][()]
+    # this include symmetric values 
+    per_point_bandwidth =  group['persample_bwfactor'][...]
 
 
     # Create the KDE with mass symmetry
@@ -202,6 +204,8 @@ for i in range(opts.end_iter - opts.start_iter):
     symmetric_samples = np.vstack((samples, samples2))
     # Double the weights for bootstrap uncertainty
     weights = np.concatenate((weights, weights)) if weighted else None
+    #uncomment below if we only save per_sample_banwidth without symmetry
+    #per_point_bandwidth  = np.tile(per_point_bandwidth, 2)
 
     train_kde = ad.AdaptiveBwKDE(
         symmetric_samples,
@@ -212,6 +216,8 @@ for i in range(opts.end_iter - opts.start_iter):
         alpha=alpha
     )
 
+    
+    
     # Evaluate KDE on the evaluation samples
     eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
     KDE_slice = eval_kde3d.reshape(XX.shape)
