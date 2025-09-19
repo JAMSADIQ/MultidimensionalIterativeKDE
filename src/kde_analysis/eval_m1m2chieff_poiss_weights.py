@@ -184,17 +184,14 @@ for i in range(opts.end_iter - opts.start_iter):
     if 'bootstrap_weights' in group:
         weighted = True
         weights = group['bootstrap_weights'][:]
+        #For weighted-KDE
+        weights_byVT = weights/group['rwvt_vals'][:]
     samples = group['rwsamples'][:]
     alpha = group['alpha'][()]
     bwx = group['bwx'][()]
     bwy = group['bwy'][()]
     bwz = group['bwz'][()]
 
-    # Remove samples with zero bootstrap weight as they may have bad behaviour in
-    # adaptive KDE (due to extremely small pilot density at the sample location)
-    # and have no effect on the KDE, and to reduce compute cost
-    samples = samples[weights > 0., :]
-    weights = weights[weights > 0.]
 
     # Create the KDE with mass symmetry
     m1 = samples[:, 0]  # First column corresponds to m1
