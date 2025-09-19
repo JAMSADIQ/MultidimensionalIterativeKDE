@@ -228,11 +228,11 @@ for i in range(opts.end_iter - opts.start_iter):
 
         eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
         KDE_slice = eval_kde3d.reshape(XX.shape)
-        Rate3D = Nev * KDE_slice  # Note: using KDE_slice, not weightedKDE_slice
+        Rate3D = Nev * KDE_slice 
 
         kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_slice)
         rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate3D)
-        ratem1m2, ratechim1m2, W_ratechisqm1m2 = integral_wrt_chieff(
+        ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(
             KDE_slice, VT_3D, CF, cfgrid, Nev, weighted=True
         )
 
@@ -262,8 +262,6 @@ for i in range(opts.end_iter - opts.start_iter):
 
     
     #kde_list.append(KDE_slice)
-
-
 
     KDEM1chieff.append(kdeM1chieff)
     KDEM2chieff.append(kdeM2chieff)
