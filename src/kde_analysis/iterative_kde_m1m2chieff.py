@@ -446,12 +446,11 @@ init_alpha = 0.5
 current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 print('Initial opt parameters', bws, alp)
 #get perpoint-bandwidths
-perpointbwds = current_kde.bandwidth#[:len(mean_sample)]
+perpointbwds = current_kde.bandwidth[:len(mean_sample)]
 #test it 
 geo_mean = np.prod(perpointbwds) ** (1/len(perpointbwds))
 print("global bandwith =", current_kde.global_bandwidth, "geometric mean of perpoint bandwidths =", geo_mean)
 
-print(len(np.array(mean_sample)), len(perpointbwds))
 # Save KDE parameters for each subsequent iteration in HDF file
 frateh5 = h5.File(opts.output_filename + '_kde_iteration.hdf5', 'a')
 
@@ -482,7 +481,6 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
             means_kde_event = np.mean(buffers[eventid][-Nbuffer:], axis=0)
             rwsample, rwvt_val = buffer_reweighted_sample(rng, samples, redshiftvals, vt_k, means_kde_event, prior_factor_kwargs=prior_kwargs)
         rwsamples.append(rwsample)
-        #boots_weights.append(rng.poisson(1))
         boots_weights.append(event_boots_weight)
         rwvt_vals.append(rwvt_val)
 
@@ -490,8 +488,7 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 
     #get perpoint bandwidth
-    perpointbwds = current_kde.bandwidth#[:len(rwsamples)]
-    print(len(np.array(rwsamples)), len(perpointbwds))
+    perpointbwds = current_kde.bandwidth[:len(rwsamples)]
     group = frateh5.create_group(f'iteration_{i}')
 
     # Save the data in the group
