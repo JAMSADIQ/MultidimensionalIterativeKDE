@@ -188,12 +188,13 @@ for i in range(opts.end_iter - opts.start_iter):
     if 'bootstrap_weights' in group:
         weighted = True
         poisson_weights = group['bootstrap_weights'][:]
+        assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
     samples = group['rwsamples'][:]
     alpha = group['alpha'][()]
     bwx = group['bwx'][()]
     bwy = group['bwy'][()]
     bwz = group['bwz'][()]
-    # this include symmetric values 
+    # no repeated  values 
     per_point_bandwidth =  group['persample_bwfactor'][...]
     
 
@@ -210,7 +211,7 @@ for i in range(opts.end_iter - opts.start_iter):
         print(f"Using VariableBwKDEPy for iteration {it}")
         vt_vals = group['rwvt_vals'][:]
         weights_over_VT = poisson_weights / vt_vals
-        weights = np.concatenate((weights_over_VT, weights_over_VT)) if weighted else None
+        weights = np.tile(weights_over_VT, 2) if weighted else None
         
         #if we only save per_sample_banwidth without symmetry
         if len(symmetric_samples) != len(per_point_bandwidth):
@@ -239,7 +240,7 @@ for i in range(opts.end_iter - opts.start_iter):
     else:
         # Case 2: rwvt_vals doesn't exist - use AdaptiveBwKDE
         print(f"Using AdaptiveBwKDE for iteration {it}")
-        weights = np.concatenate((poisson_weights, poisson_weights)) if weighted else None
+        weights = np.tile(poisson_weights, 2) if weighted else None
 
         train_kde = ad.AdaptiveBwKDE(
             symmetric_samples,
