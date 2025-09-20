@@ -56,7 +56,7 @@ parser.add_argument('--buffer-interval', default=100, type=int, help='Size of bu
 parser.add_argument('--n-iterations', default=500, type=int, help='Total reweighting iterations after start of buffer')
 
 # Output
-parser.add_argument('--pathplot', default='./short', help='public_html path for plots', type=str)
+parser.add_argument('--pathplot', default='./', help='public_html path for plots', type=str)
 parser.add_argument('--output-filename', required=True, help='name of analysis output hdf file', type=str)
 opts = parser.parse_args()
 #####################################################################
