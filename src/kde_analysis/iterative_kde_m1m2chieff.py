@@ -186,9 +186,9 @@ def get_reweighted_sample(rng, sample, redshiftvals, vt_vals, fpop_kde, prior_fa
     # Normalize :sum=1
     fpop_at_samples = frate_atsample / frate_atsample.sum()
 
-    # Get the selected index using weighted random sampling
+    # Select a sample using weighted random sampling
     selected_idx = rng.choice(len(sample), p=fpop_at_samples)
-    # Return both the selected sample and its corresponding vt_val
+    
     return sample[selected_idx], vt_vals[selected_idx]
 
 
@@ -235,9 +235,8 @@ def buffer_reweighted_sample(rng, sample, redshiftvals, vt_vals, meanKDEevent, p
     # Normalize
     norm_mediankdevals = kde_by_vt / sum(kde_by_vt)
     
-    # Get the selected index using weighted random sampling
+    # Select a sample using weighted random sampling
     selected_idx = rng.choice(len(sample), p=norm_mediankdevals)
-    # Return both the selected sample and its corresponding vt_val
     return sample[selected_idx], vt_vals[selected_idx]
 
 
@@ -355,11 +354,7 @@ for k in d1.keys():
         vt_val = vth5file[k][:]
         print('Got VT from file for', k)
     except:
-        print('Calculating pdet for', k)
-        vt_val = np.zeros(len(m1det_val))
-        for i in range(len(m1det_val)):
-            vt_val[i] = sensitivity(m1_val[i], m2_val[i], chieff=chieff_val[i])
-        vth5file.create_dataset(k, data=np.array(vt_val))
+        print('VTs need to be computed')
 
     
     print("check", len(m1_val), len(vt_val))
@@ -380,7 +375,6 @@ flat_samples1 = np.concatenate(sampleslists1).flatten()
 flat_samples2 = np.concatenate(sampleslists2).flatten()
 flat_samples3 = np.concatenate(sampleslists3).flatten()
 flat_vtlist = np.concatenate(vtlists).flatten()
-print("final check", len(flat_samples1), len(flat_vtlist))
 print("min max m1 =", np.min(flat_samples1), np.max(flat_samples1))
 print("min max m2 =", np.min(flat_samples2), np.max(flat_samples2))
 print("min max chieff =", np.min(flat_samples3), np.max(flat_samples3))
