@@ -481,7 +481,7 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     # Reassign current KDE to optimized estimate for this iteration
     current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 
-    #get perpoint bandwidth
+    # Get perpoint bandwidth
     perpointbwds = current_kde.bandwidth[:len(rwsamples)]
     group = frateh5.create_group(f'iteration_{i}')
 
