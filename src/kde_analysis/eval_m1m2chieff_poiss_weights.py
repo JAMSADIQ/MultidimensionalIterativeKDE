@@ -195,7 +195,7 @@ for i in range(opts.end_iter - opts.start_iter):
     bwy = group['bwy'][()]
     bwz = group['bwz'][()]
     # no repeated  values 
-    per_point_bandwidth =  group['persample_bwfactor'][...]
+    per_point_bandwidth =  group['persample_bw'][...]
     
 
     # Create the KDE with mass symmetry
