@@ -482,12 +482,12 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
     current_kde, optbw, optalp = get_kde_obj_eval(np.array(rwsamples), np.array(boots_weights), init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 
     # Get perpoint bandwidth
-    perpointbwds = current_kde.bandwidth[:len(rwsamples)]
+    perpointbws = current_kde.bandwidth[:len(rwsamples)]
     group = frateh5.create_group(f'iteration_{i}')
 
     # Save the data in the group
     group.create_dataset('rwsamples', data=np.array(rwsamples))
-    group.create_dataset('persample_bw', data=np.array(perpointbwds))
+    group.create_dataset('perpoint_bws', data=np.array(perpointbws))
     group.create_dataset('rwvt_vals', data=np.array(rwvt_vals))
     group.create_dataset('bootstrap_weights', data=np.array(boots_weights))
     group.create_dataset('alpha', data=optalp)
