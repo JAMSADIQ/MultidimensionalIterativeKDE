@@ -487,7 +487,7 @@ for i in range(opts.n_iterations + discard):  # eg 500 + 200
 
     # Save the data in the group
     group.create_dataset('rwsamples', data=np.array(rwsamples))
-    group.create_dataset('persample_bwfactor', data=np.array(perpointbwds))
+    group.create_dataset('persample_bw', data=np.array(perpointbwds))
     group.create_dataset('rwvt_vals', data=np.array(rwvt_vals))
     group.create_dataset('bootstrap_weights', data=np.array(boots_weights))
     group.create_dataset('alpha', data=optalp)
