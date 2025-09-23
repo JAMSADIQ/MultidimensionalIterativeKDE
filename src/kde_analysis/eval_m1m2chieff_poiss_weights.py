@@ -174,7 +174,10 @@ RateM2chieff = []
 kde3d_list = [] #if needed
 
 ###############################Iterations and evaluating KDEs/Rate
+###############################Iterations and evaluating KDEs/Rate
 weighted = False
+vt_weights = False  # New flag to control VT weighting
+
 for i in range(opts.end_iter - opts.start_iter):
     it = i + opts.discard + opts.start_iter
     ilabel = i + opts.start_iter
@@ -183,21 +186,23 @@ for i in range(opts.end_iter - opts.start_iter):
     if iter_name not in hdf:
         print(f"Iteration {it} not found in file.")
         continue
-
     group = hdf[iter_name]
     if 'bootstrap_weights' in group:
         weighted = True
         poisson_weights = group['bootstrap_weights'][:]
         assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
+    
+    # Check if VT weighting should be used
+    if 'rwvt_vals' in group:
+        vt_weights = True
+        vt_vals = group['rwvt_vals'][:]
+    
     samples = group['rwsamples'][:]
     alpha = group['alpha'][()]
     bwx = group['bwx'][()]
     bwy = group['bwy'][()]
     bwz = group['bwz'][()]
-    # no repeated  values 
-    per_point_bandwidth =  group['persample_bw'][...]
     
-
     # Create the KDE with mass symmetry
     m1 = samples[:, 0]  # First column corresponds to m1
     m2 = samples[:, 1]  # Second column corresponds to m2
@@ -205,19 +210,29 @@ for i in range(opts.end_iter - opts.start_iter):
     samples2 = np.vstack((m2, m1, cf)).T
     # Combine both samples into one array
     symmetric_samples = np.vstack((samples, samples2))
-    # Check if rwvt_vals exists and process accordingly
-    if 'rwvt_vals' in group:
-        # Case 1: rwvt_vals exists - use VariableBwKDEPy
+    
+    # Determine weights based on vt_weights flag
+    if weighted:
+        if vt_weights:
+            weights_over_VT = poisson_weights / vt_vals
+            weights = np.tile(weights_over_VT, 2)
+        else:
+            weights = np.tile(poisson_weights, 2)
+    else:
+        weights = None
+    
+    # Check if per-point bandwidth exists
+    use_variable_bw = 'persample_bw' in group
+    
+    if use_variable_bw:
+        # Using VariableBwKDEPy with per-point bandwidth
         print(f"Using VariableBwKDEPy for iteration {it}")
-        vt_vals = group['rwvt_vals'][:]
-        weights_over_VT = poisson_weights / vt_vals
-        weights = np.tile(weights_over_VT, 2) if weighted else None
+        per_point_bandwidth = group['persample_bw'][...]
         
-        #if we only save per_sample_banwidth without symmetry
+        # If we only save per_sample_bandwidth without symmetry
         if len(symmetric_samples) != len(per_point_bandwidth):
             per_point_bandwidth = np.tile(per_point_bandwidth, 2)
-
-        # Using per point bandwidth
+        
         train_kde = d.VariableBwKDEPy(
             symmetric_samples,
             weights=weights,
@@ -226,22 +241,9 @@ for i in range(opts.end_iter - opts.start_iter):
             rescale=[1/bwx, 1/bwy, 1/bwz],
             bandwidth=per_point_bandwidth
         )
-
-        eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
-        KDE_slice = eval_kde3d.reshape(XX.shape)
-        Rate3D = Nev * KDE_slice 
-
-        kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_slice)
-        rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate3D)
-        ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(
-            KDE_slice, VT_3D, CF, cfgrid, Nev, weighted=True
-        )
-
     else:
-        # Case 2: rwvt_vals doesn't exist - use AdaptiveBwKDE
+        # Using AdaptiveBwKDE
         print(f"Using AdaptiveBwKDE for iteration {it}")
-        weights = np.tile(poisson_weights, 2) if weighted else None
-
         train_kde = ad.AdaptiveBwKDE(
             symmetric_samples,
             weights,
@@ -250,18 +252,33 @@ for i in range(opts.end_iter - opts.start_iter):
             rescale=[1/bwx, 1/bwy, 1/bwz],
             alpha=alpha
         )
-
-        eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
-        KDE_slice = eval_kde3d.reshape(XX.shape)
+    
+    # Evaluate KDE
+    eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
+    KDE_slice = eval_kde3d.reshape(XX.shape)
+    
+    # Calculate Rate3D based on vt_weights flag
+    if vt_weights:
+        Rate3D = Nev * KDE_slice
+    else:
         Rate3D = Nev * KDE_slice / VT_3D
-
-        kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_slice)
-        rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate3D)
+    
+    # Calculate marginals
+    kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_slice)
+    rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate3D)
+    
+    # Integral calculation
+    if vt_weights:
+        ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(
+            KDE_slice, VT_3D, CF, cfgrid, Nev, weighted=True
+        )
+    else:
         ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(
             KDE_slice, VT_3D, CF, cfgrid, Nev
         )
 
-    
+
+
     #kde_list.append(KDE_slice)
 
     KDEM1chieff.append(kdeM1chieff)
