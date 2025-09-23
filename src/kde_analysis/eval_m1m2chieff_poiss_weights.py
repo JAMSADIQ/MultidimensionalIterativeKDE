@@ -229,10 +229,6 @@ for i in range(opts.end_iter - opts.start_iter):
         print(f"Using VariableBwKDEPy for iteration {it}")
         per_point_bandwidth = group['persample_bw'][...]
         
-        # If we only save per_sample_bandwidth without symmetry
-        if len(symmetric_samples) != len(per_point_bandwidth):
-            per_point_bandwidth = np.tile(per_point_bandwidth, 2)
-        
         train_kde = d.VariableBwKDEPy(
             symmetric_samples,
             weights=weights,
