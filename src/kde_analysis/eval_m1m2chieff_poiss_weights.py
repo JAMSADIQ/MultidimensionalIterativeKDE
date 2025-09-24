@@ -215,6 +215,7 @@ for i in range(opts.end_iter - opts.start_iter):
     if weighted:
         if vt_weights:
             weights_over_VT = poisson_weights / vt_vals
+            # Duplicate weights for symmetric samples (m1 ↔ m2)
             weights = np.tile(weights_over_VT, 2)
         else:
             weights = np.tile(poisson_weights, 2)
@@ -235,8 +236,6 @@ for i in range(opts.end_iter - opts.start_iter):
             bandwidth=per_point_bandwidth
         )
     else:
-        # Using AdaptiveBwKDE
-        print(f"Using AdaptiveBwKDE for iteration {it}")
         train_kde = ad.AdaptiveBwKDE(
             symmetric_samples,
             weights,
