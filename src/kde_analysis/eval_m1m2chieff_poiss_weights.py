@@ -224,7 +224,6 @@ for i in range(opts.end_iter - opts.start_iter):
     
     # Check if per-point bandwidth exists
     if 'perpoint_bws' in group:
-        # Using VariableBwKDEPy with per-point bandwidth
         per_point_bandwidth = group['perpoint_bws'][...]
         
         train_kde = d.VariableBwKDEPy(
