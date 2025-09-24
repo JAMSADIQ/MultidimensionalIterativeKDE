@@ -354,10 +354,13 @@ for k in d1.keys():
         vt_val = vth5file[k][:]
         print('Got VT from file for', k)
     except:
-        print('VTs need to be computed')
+        print('Calculating pdet for', k)
+        vt_val = np.zeros(len(m1det_val))
+        for i in range(len(m1det_val)):
+            vt_val[i] = sensitivity(m1_val[i], m2_val[i], chieff=chieff_val[i])
+        vth5file.create_dataset(k, data=np.array(vt_val))
 
     
-    print("check", len(m1_val), len(vt_val))
     vtlists.append(vt_val)
     sampleslists1.append(m1_val)
     sampleslists2.append(m2_val)
@@ -439,11 +442,9 @@ init_alpha = 0.5
 # First mean samples KDE (no weights)
 current_kde, bws, alp = get_kde_obj_eval(mean_sample, None, init_rescale, init_alpha, mass_symmetry=True, input_transf=('log', 'log', 'none'), minbw3=opts.min_bw3)
 print('Initial opt parameters', bws, alp)
-#get perpoint-bandwidths
+
+# Get perpoint-bandwidths
 perpointbwds = current_kde.bandwidth[:len(mean_sample)]
-#test it 
-geo_mean = np.prod(perpointbwds) ** (1/len(perpointbwds))
-print("global bandwith =", current_kde.global_bandwidth, "geometric mean of perpoint bandwidths =", geo_mean)
 
 # Save KDE parameters for each subsequent iteration in HDF file
 frateh5 = h5.File(opts.output_filename + '_kde_iteration.hdf5', 'a')
