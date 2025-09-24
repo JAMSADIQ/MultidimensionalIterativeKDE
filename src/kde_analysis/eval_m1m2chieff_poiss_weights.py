@@ -222,11 +222,8 @@ for i in range(opts.end_iter - opts.start_iter):
         weights = None
     
     # Check if per-point bandwidth exists
-    use_variable_bw = 'perpoint_bws' in group
-    
-    if use_variable_bw:
+    if 'perpoint_bws' in group:
         # Using VariableBwKDEPy with per-point bandwidth
-        print(f"Using VariableBwKDEPy for iteration {it}")
         per_point_bandwidth = group['perpoint_bws'][...]
         
         train_kde = d.VariableBwKDEPy(
@@ -272,10 +269,6 @@ for i in range(opts.end_iter - opts.start_iter):
         ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(
             KDE_slice, VT_3D, CF, cfgrid, Nev
         )
-
-
-
-    #kde_list.append(KDE_slice)
 
     KDEM1chieff.append(kdeM1chieff)
     KDEM2chieff.append(kdeM2chieff)
