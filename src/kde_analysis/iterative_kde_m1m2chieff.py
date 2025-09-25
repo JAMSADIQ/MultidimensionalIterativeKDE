@@ -455,6 +455,10 @@ def Neff(weights):
 # Save KDE parameters for each subsequent iteration in HDF file
 frateh5 = h5.File(opts.output_filename + '_kde_iteration.hdf5', 'a')
 
+# Start by recording options
+for oname, oval in vars(opts).items():
+    frateh5.attrs.create(oname, oval)
+
 # Store iteration statistics
 iterbwx = []
 iterbwy = []
