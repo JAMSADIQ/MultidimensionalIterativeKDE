@@ -144,7 +144,7 @@ for f in opts.o2filesname:
     eventnamef = os.path.splitext(path_leaf(f))[0]
     dat = h5py.File(f, 'r')[eventnamef+'/posterior_samples']
     m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
-    print('m1 - m2 between', (m1vals - m2vals).min(), (m1vals - m2vals).min())
+    print('min m1 - m2', (m1vals - m2vals).min())
 
     # If the BBH option is given masses must satisfy a criterion otherwise continue
     if opts.eventsType == 'BBH':
@@ -184,7 +184,7 @@ for f in opts.o3afilesname:
     eventnamef = os.path.splitext(path_leaf(f))[0]
     dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
     m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
-    print('m1 - m2 between', (m1vals - m2vals).min(), (m1vals - m2vals).min())
+    print('min m1 - m2', (m1vals - m2vals).min())
 
     # If the BBH option is given masses must satisfy a criterion otherwise continue
     if opts.eventsType == 'BBH':
