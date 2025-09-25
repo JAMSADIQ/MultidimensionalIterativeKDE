@@ -6,7 +6,7 @@ from scipy.integrate import quad, simpson
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib import use; use('agg')
 from matplotlib import rcParams
-from popde import density_estimate as d, adaptive_kde as ad
+from popde import density_estimate as kde, adaptive_kde as akde
 import utils_plot as u_plot
 
 #'''
@@ -50,30 +50,26 @@ opts = parser.parse_args()
 
 
 #################Integration functions######################
-def integral_wrt_chieff(KDE3D, VT3D, cf_mesh, cf_grid, Nevents, weighted=False):
+def integral_wrt_chieff(cf_mesh, cf_grid, Rate_3d):
     """
-    KDE3d and VT3d are computed with indexing 'ij' way
+    Compute moments of chieff distribution at each point over m1, m2.
+    Rate_3d is stored with indexing 'ij' way
     """
-    if weighted:
-        Rate3D = Nevents * KDE3D
-    else:
-        Rate3D = Nevents * KDE3D / VT3D
-
-    integm1m2 = simpson(Rate3D, x=cf_grid, axis=2)
-    integchi_m1m2 = simpson(Rate3D * cf_mesh, x=cf_grid, axis=2)
-    integchisq_m1m2 = simpson(Rate3D * cf_mesh * cf_mesh, x=cf_grid, axis=2)
+    integm1m2 = simpson(Rate_3d, x=cf_grid, axis=2)
+    integchi_m1m2 = simpson(Rate_3d * cf_mesh, x=cf_grid, axis=2)
+    integchisq_m1m2 = simpson(Rate_3d * cf_mesh * cf_mesh, x=cf_grid, axis=2)
 
     return integm1m2, integchi_m1m2, integchisq_m1m2
 
 
-def get_m_chieff_rate_at_fixed_q(m1grid, m2grid, chieffgrid, Rate3D, q=1.0):
+def get_m_chieff_rate_at_fixed_q(m1grid, m2grid, chieffgrid, Rate_3d, q=1.0):
     """
     q must be <=1 as m2 = q * m1mesh
     """
     M, _ = np.meshgrid(m1grid, chieffgrid, indexing='ij')
     m2values = q * M
     Rate2Dfixed_q = np.zeros_like(M)
-    interpolator = RegularGridInterpolator((m1grid, m2grid, chieffgrid), Rate3D, bounds_error=False, fill_value=None)
+    interpolator = RegularGridInterpolator((m1grid, m2grid, chieffgrid), Rate_3d, bounds_error=False, fill_value=None)
     for ix, m1val in enumerate(m1grid):
         Rate2Dfixed_q[ix, :] = interpolator((m1val, m2_values[ix, :], chieffgrid))
     return Rate2Dfixed_q
@@ -133,11 +129,11 @@ VTdata = h5.File(opts.vt_file, 'r')
 m1grid = VTdata['m1vals'][:]
 m2grid = VTdata['m2vals'][:]
 cfgrid = VTdata['xivals'][:]
-VT_3D = VTdata['VT'][...] /1e9  # Gpc^3
+VT_3d = VTdata['VT'][...] / 1e9  # units Gpc^3
 VTdata.close()
 
 if opts.vt_multiplier:  # Scale up for rough estimates if exact VT not available
-    VT_3D *= opts.vt_multiplier
+    VT_3d *= opts.vt_multiplier
 
 hdf = h5.File(opts.iterative_result, 'r')
 
@@ -174,8 +170,7 @@ RateM2chieff = []
 kde3d_list = [] #if needed
 
 ###############################Iterations and evaluating KDEs/Rate
-###############################Iterations and evaluating KDEs/Rate
-weighted = False
+boots_weighted = False
 vt_weights = False  # New flag to control VT weighting
 
 for i in range(opts.end_iter - opts.start_iter):
@@ -188,7 +183,7 @@ for i in range(opts.end_iter - opts.start_iter):
         continue
     group = hdf[iter_name]
     if 'bootstrap_weights' in group:
-        weighted = True
+        boots_weighted = True
         poisson_weights = group['bootstrap_weights'][:]
         assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
     
@@ -212,30 +207,31 @@ for i in range(opts.end_iter - opts.start_iter):
     symmetric_samples = np.vstack((samples, samples2))
     
     # Determine weights based on vt_weights flag
-    if weighted:
+    if boots_weighted:
         if vt_weights:
             weights_over_VT = poisson_weights / vt_vals
-            # Duplicate weights for symmetric samples (m1 ↔ m2)
+            # Duplicate weights for symmetric samples (m1 <-> m2)
             weights = np.tile(weights_over_VT, 2)
         else:
             weights = np.tile(poisson_weights, 2)
     else:
         weights = None
     
-    # Check if per-point bandwidth exists
+    # If per-point bandwidth exists use it directly, otherwise 
+    # use the adaptive KDE algorithm
     if 'perpoint_bws' in group:
         per_point_bandwidth = group['perpoint_bws'][...]
         
-        train_kde = d.VariableBwKDEPy(
+        train_kde = kde.VariableBwKDEPy(
             symmetric_samples,
-            weights=weights,
+            weights,
             input_transf=('log', 'log', 'none'),
             stdize=True,
             rescale=[1/bwx, 1/bwy, 1/bwz],
             bandwidth=per_point_bandwidth
         )
     else:
-        train_kde = ad.AdaptiveBwKDE(
+        train_kde = akde.AdaptiveBwKDE(
             symmetric_samples,
             weights,
             input_transf=('log', 'log', 'none'),
@@ -246,27 +242,18 @@ for i in range(opts.end_iter - opts.start_iter):
     
     # Evaluate KDE
     eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
-    KDE_slice = eval_kde3d.reshape(XX.shape)
+    KDE_3d = eval_kde3d.reshape(XX.shape)
     
-    # Calculate Rate3D based on vt_weights flag
+    # Calculate merger rate based on vt_weights flag
     if vt_weights:
-        Rate3D = Nev * KDE_slice
+        Rate_3d = Nev * KDE_3d  # KDE kernels are already weighted by 1/VT
     else:
-        Rate3D = Nev * KDE_slice / VT_3D
+        Rate_3d = Nev * KDE_3d / VT_3d
     
     # Calculate marginals
-    kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_slice)
-    rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate3D)
-    
-    # Integral calculation
-    if vt_weights:
-        ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(
-            KDE_slice, VT_3D, CF, cfgrid, Nev, weighted=True
-        )
-    else:
-        ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(
-            KDE_slice, VT_3D, CF, cfgrid, Nev
-        )
+    kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_3d)
+    rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate_3d)
+    ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(CF, cfgrid, Rate_3d)
 
     KDEM1chieff.append(kdeM1chieff)
     KDEM2chieff.append(kdeM2chieff)
