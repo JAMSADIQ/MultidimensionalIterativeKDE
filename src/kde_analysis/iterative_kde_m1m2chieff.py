@@ -532,5 +532,5 @@ u_plot.bw_correlation(iterbwx, discard, 'bwx', opts.pathplot)
 u_plot.bw_correlation(iterbwy, discard, 'bwy', opts.pathplot)
 u_plot.bw_correlation(iterbwz, discard, 'bwz', opts.pathplot)
 u_plot.bw_correlation(iteralp, discard, 'alpha', opts.pathplot, log=False)
-u_plot.bw_correlation(iterminneff, discard, 'min(Neff)', opts.pathplot)
+u_plot.bw_correlation(iterminneff, discard, r'min(Neff)', opts.pathplot)
 
