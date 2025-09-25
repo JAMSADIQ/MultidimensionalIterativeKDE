@@ -19,7 +19,6 @@ parser.add_argument("--inverse-chieff-prior-weight", action='store_true', help="
 parser.add_argument("--max-a", type=float, default=0.999, help="Max spin magnitude for chieff prior calculation. Default 0.999")
 parser.add_argument("--eventsType", default="BBH", required=True, help="description of type of events used. AllCompactObject or BBH")
 parser.add_argument("--min-median-mass", default=3.0, type=float, required=True, help="If eventType BBH is chosen, remove events with one or both component median masses below given value")
-parser.add_argument('--pathdata', default='./', help='directory to save data file')
 opts = parser.parse_args()
 
 
@@ -145,6 +144,7 @@ for f in opts.o2filesname:
     eventnamef = os.path.splitext(path_leaf(f))[0]
     dat = h5py.File(f, 'r')[eventnamef+'/posterior_samples']
     m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
+    print('min m1 - m2', (m1vals - m2vals).min())
 
     # If the BBH option is given masses must satisfy a criterion otherwise continue
     if opts.eventsType == 'BBH':
@@ -184,6 +184,7 @@ for f in opts.o3afilesname:
     eventnamef = os.path.splitext(path_leaf(f))[0]
     dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
     m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
+    print('min m1 - m2', (m1vals - m2vals).min())
 
     # If the BBH option is given masses must satisfy a criterion otherwise continue
     if opts.eventsType == 'BBH':
@@ -221,6 +222,7 @@ for f in opts.o3bfilesname:
     eventnamef = os.path.splitext(path_leaf(f))[0]
     dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
     m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
+    print('min m1 - m2', (m1vals - m2vals).min())
 
     # If the BBH option is given masses must satisfy a criterion otherwise continue
     if opts.eventsType == 'BBH':

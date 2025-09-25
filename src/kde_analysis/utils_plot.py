@@ -106,8 +106,9 @@ def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_est, times
     factor = M1 * M2 if timesM else 1.
     median_to_plot = median_est * factor
     prefix = r'm_1m_2\,' if timesM else ''  # multiply by m for display
+    massunits = r'' if timesM else r'M_\odot^{-2}'
     if plot_name == 'Rate':
-        colorbar_label = r'$'+prefix+r'd \mathcal{R}/dm_1 dm_2 [\mathrm{Gpc}^{-3} \mathrm{yr}^{-1} M_\odot^{-2}]$'
+        colorbar_label = r'$'+prefix+r'd \mathcal{R}/dm_1 dm_2 [\mathrm{Gpc}^{-3} \mathrm{yr}^{-1}'+massunits+']$'
     else:
         colorbar_label = r'$p(m_1, m_2)$'
     max_density = np.max(median_to_plot)
@@ -178,8 +179,9 @@ def color_m1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_val, median_rat
 def get_m_Xieff_plot(medianlist_m1, medianlist_xieff, M, XIEFF, medianKDE, timesM=False, itertag='', pathplot='./', plot_name='KDE', xlabel='m_1'):
     # Set colorbar label based on plot_name
     prefix = xlabel if timesM else ''  # multiply by m for display
+    massunits = r'' if timesM else r'M_\odot^{-1}'
     if plot_name == 'Rate':
-        colorbar_label = r'$'+prefix+r'd \mathcal{R}/d'+ xlabel+'d \chi_\mathrm{eff}[\mathrm{Gpc}^{-3} \mathrm{yr}^{-1} M_\odot^{-1}] $'
+        colorbar_label = r'$'+prefix+r'd \mathcal{R}/d'+xlabel+'d \chi_\mathrm{eff}[\mathrm{Gpc}^{-3} \mathrm{yr}^{-1}'+massunits+']$'
     else:
         colorbar_label = r'$p(' + xlabel + ', \chi_\mathrm{eff})$'
 
@@ -201,11 +203,11 @@ def get_m_Xieff_plot(medianlist_m1, medianlist_xieff, M, XIEFF, medianKDE, times
 
     plt.ylabel(r"$\chi_\mathrm{eff}$")
     plt.xlabel(r'$' + xlabel + r'\,[M_\odot]$')
-    plt.semilogx()
+    if timesM: plt.semilogx()  # log mass axis
     plt.xlim(4, 110)
 
     plt.tight_layout()
-    times = 'times_m_' if timesM else ''
+    times = 'times_m_' if timesM else 'lin_'
     plt.savefig(pathplot+xlabel+"_chieff_"+plot_name+"_"+times+itertag+".png")
     plt.close()
     return
