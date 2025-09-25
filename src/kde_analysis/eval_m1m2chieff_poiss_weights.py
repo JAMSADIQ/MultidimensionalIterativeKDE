@@ -186,18 +186,18 @@ for i in range(opts.end_iter - opts.start_iter):
         boots_weighted = True
         poisson_weights = group['bootstrap_weights'][:]
         assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
-    
+
     # Check if VT weighting should be used
     if 'rwvt_vals' in group:
         vt_weights = True
         vt_vals = group['rwvt_vals'][:]
-    
+
     samples = group['rwsamples'][:]
     alpha = group['alpha'][()]
     bwx = group['bwx'][()]
     bwy = group['bwy'][()]
     bwz = group['bwz'][()]
-    
+
     # Create the KDE with mass symmetry
     m1 = samples[:, 0]  # First column corresponds to m1
     m2 = samples[:, 1]  # Second column corresponds to m2
@@ -205,7 +205,7 @@ for i in range(opts.end_iter - opts.start_iter):
     samples2 = np.vstack((m2, m1, cf)).T
     # Combine both samples into one array
     symmetric_samples = np.vstack((samples, samples2))
-    
+
     # Determine weights based on vt_weights flag
     if boots_weighted:
         if vt_weights:
@@ -216,12 +216,12 @@ for i in range(opts.end_iter - opts.start_iter):
             weights = np.tile(poisson_weights, 2)
     else:
         weights = None
-    
-    # If per-point bandwidth exists use it directly, otherwise 
+
+    # If per-point bandwidth exists use it directly, otherwise
     # use the adaptive KDE algorithm
     if 'perpoint_bws' in group:
         per_point_bandwidth = group['perpoint_bws'][...]
-        
+
         train_kde = kde.VariableBwKDEPy(
             symmetric_samples,
             weights,
@@ -239,17 +239,17 @@ for i in range(opts.end_iter - opts.start_iter):
             rescale=[1/bwx, 1/bwy, 1/bwz],
             alpha=alpha
         )
-    
+
     # Evaluate KDE
     eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
     KDE_3d = eval_kde3d.reshape(XX.shape)
-    
+
     # Calculate merger rate based on vt_weights flag
     if vt_weights:
         Rate_3d = Nev * KDE_3d  # KDE kernels are already weighted by 1/VT
     else:
         Rate_3d = Nev * KDE_3d / VT_3d
-    
+
     # Calculate marginals
     kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_3d)
     rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate_3d)

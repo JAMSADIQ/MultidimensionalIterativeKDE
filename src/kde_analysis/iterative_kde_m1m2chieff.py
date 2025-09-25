@@ -198,7 +198,7 @@ def get_reweighted_sample(rng, sample, redshiftvals, vt_vals, fpop_kde, prior_fa
 
     # Select a sample using weighted random sampling
     selected_idx = rng.choice(len(sample), p=fpop_at_samples)
-    
+
     return sample[selected_idx], vt_vals[selected_idx], fpop_at_samples
 
 
@@ -369,7 +369,7 @@ for k in d1.keys():
         for i in range(len(m1det_val)):
             vt_val[i] = sensitivity(m1_val[i], m2_val[i], chieff=chieff_val[i])
         vth5file.create_dataset(k, data=np.array(vt_val))
-    
+
     vtlists.append(vt_val)
     sampleslists1.append(m1_val)
     sampleslists2.append(m2_val)
