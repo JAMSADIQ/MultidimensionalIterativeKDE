@@ -246,7 +246,7 @@ def buffer_reweighted_sample(rng, sample, redshiftvals, vt_vals, meanKDEevent, p
     norm_meankdevals = kde_by_vt / sum(kde_by_vt)
 
     # Select a sample using weighted random sampling
-    selected_idx = rng.choice(len(sample), p=norm_mediankdevals)
+    selected_idx = rng.choice(len(sample), p=norm_meankdevals)
 
     return sample[selected_idx], vt_vals[selected_idx], norm_meankdevals
 
