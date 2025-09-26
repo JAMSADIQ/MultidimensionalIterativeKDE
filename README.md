@@ -1,2 +1,2 @@
 # MultidimensionalIterativeKDE
-Iterative KDE in mulitdimension with rescale bandwidth for each dimension
+Iterative KDE in multidimension with rescale bandwidth for each dimension
