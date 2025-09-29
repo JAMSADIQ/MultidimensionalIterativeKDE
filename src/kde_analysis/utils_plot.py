@@ -729,11 +729,13 @@ def average2DlineardLrate_plot(m1vals, m2vals, XX, YY, kdelists, pathplot='./', 
     return CI50
 
 
-def bw_correlation(bwlist, number_corr=100, param='bw', pathplot='./', log=True):
+def bw_correlation(bwlist, n_corr=100, param='bw', pathplot='./', log=True):
     """
     """
     plt.figure()
     plt.plot(bwlist, '+')
+    if min(bwlist) > 0:
+        plt.semilogy()
     plt.grid(True)
     plt.xlabel('Iteration')
     plt.ylabel(param)
@@ -747,28 +749,28 @@ def bw_correlation(bwlist, number_corr=100, param='bw', pathplot='./', log=True)
         if log==False:
             M = np.corrcoef(bwlist[i+1: ], bwlist[ :-i-1])
         else:
-            M = np.corrcoef( np.log(bwlist[i+1: ]), np.log(bwlist[ :-i-1]))
+            M = np.corrcoef(np.log(bwlist[i+1: ]), np.log(bwlist[ :-i-1]))
         Cxy.append(M[0][1])
     plt.figure(figsize=(8,4))
-    plt.plot(iternumber[number_corr:], Cxy[number_corr:],'+-')
+    plt.plot(iternumber[n_corr:], Cxy[n_corr:],'+-')
     plt.xlabel('Number of iterations')
     plt.ylabel(r'$C_{01}$', fontsize=14)
     plt.semilogx()
     plt.grid(True)
-    plt.savefig(pathplot+param+"C01_iter_after_100.png", bbox_inches='tight')
+    plt.savefig(pathplot+param+f"C01_iter_after_{n_corr}.png", bbox_inches='tight')
     plt.close()
     plt.figure(figsize=(8, 4))
-    plt.plot(iternumber[:number_corr], Cxy[:number_corr],'+-')
+    plt.plot(iternumber[:n_corr], Cxy[:n_corr],'+-')
     plt.xlabel('Number of iterations')
     plt.ylabel(r'$C_{01}$')
     #plt.semilogx()
     plt.grid(True)
-    plt.savefig(pathplot+param+"C01_iter_before_100.png", bbox_inches='tight')
+    plt.savefig(pathplot+param+f"C01_iter_before_{n_corr}.png", bbox_inches='tight')
     plt.close()
 
     #corrcoefficient
     Cxy = []
-    #for i in range(number_corr, int(len(bwlist)/2)):
+    #for i in range(n_corr, int(len(bwlist)/2)):
     for i in range(int(len(bwlist)/2)):
         if log == True:
             M = np.corrcoef( np.log(bwlist[i+1: ]), np.log(bwlist[ :-i-1]))
