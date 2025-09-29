@@ -8,7 +8,6 @@ from matplotlib.colors import LogNorm, PowerNorm
 from matplotlib import rcParams
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src/', 'kde_analysis'))
-print(sys.path)
 
 import utils_plot as u_plot
 
