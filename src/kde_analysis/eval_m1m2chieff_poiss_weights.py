@@ -116,20 +116,23 @@ def get_rate_m_chieff2D(m1_query, m2_query, Rate):
 
 #####################################################################
 # Get original mean sample points
-with h5.File(opts.samplesx1, 'r') as f1:
-    mean1 = f1['initialdata/original_mean'][...]
-with h5.File(opts.samplesx2, 'r') as f2:
-    mean2 = f2['initialdata/original_mean'][...]
-with h5.File(opts.samplesx3, 'r') as f3:
-    mean3 = f3['initialdata/original_mean'][...]
-
-Nev = mean1.size  # Number of detections
+if opts.samplesx1 and opts.samplesx2 and opts.samplesx3:
+    with h5.File(opts.samplesx1, 'r') as f1:
+        mean1 = f1['initialdata/original_mean'][...]
+    with h5.File(opts.samplesx2, 'r') as f2:
+        mean2 = f2['initialdata/original_mean'][...]
+    with h5.File(opts.samplesx3, 'r') as f3:
+        mean3 = f3['initialdata/original_mean'][...]
+    Nev = mean1.size  # Number of detections
+else:
+    mean1, mean2, mean3 = None, None, None
+    Nev = -1  # Sentinel: get nevents from bootstrap
 
 VTdata = h5.File(opts.vt_file, 'r')
 m1grid = VTdata['m1vals'][:]
 m2grid = VTdata['m2vals'][:]
 cfgrid = VTdata['xivals'][:]
-VT_3d = VTdata['VT'][...] / 1e9  # units Gpc^3
+VT_3d = VTdata['VT'][...] / 1e9  # change units to Gpc^3
 VTdata.close()
 
 if opts.vt_multiplier:  # Scale up for rough estimates if exact VT not available
@@ -167,11 +170,10 @@ KDEM1chieff = []
 KDEM2chieff = []
 RateM1chieff = []
 RateM2chieff = []
-kde3d_list = [] #if needed
 
 ###############################Iterations and evaluating KDEs/Rate
 boots_weighted = False
-vt_weights = False  # New flag to control VT weighting
+vt_weights = False  # Flag to control VT weighting
 
 for i in range(opts.end_iter - opts.start_iter):
     it = i + opts.discard + opts.start_iter
@@ -181,16 +183,18 @@ for i in range(opts.end_iter - opts.start_iter):
     if iter_name not in hdf:
         print(f"Iteration {it} not found in file.")
         continue
+
     group = hdf[iter_name]
     if 'bootstrap_weights' in group:
         boots_weighted = True
         poisson_weights = group['bootstrap_weights'][:]
         assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
+        Nboots = poisson_weights.sum()  # Number of events in bootstrap
 
     # Check if VT weighting should be used
     if 'rwvt_vals' in group:
         vt_weights = True
-        vt_vals = group['rwvt_vals'][:]
+        vt_vals = group['rwvt_vals'][:] / 1e9  # change units to Gpc^3
 
     samples = group['rwsamples'][:]
     alpha = group['alpha'][()]
@@ -228,7 +232,7 @@ for i in range(opts.end_iter - opts.start_iter):
             input_transf=('log', 'log', 'none'),
             stdize=True,
             rescale=[1/bwx, 1/bwy, 1/bwz],
-            bandwidth=per_point_bandwidth
+            bandwidth=np.tile(per_point_bandwidth, 2)
         )
     else:
         train_kde = akde.AdaptiveBwKDE(
@@ -244,11 +248,12 @@ for i in range(opts.end_iter - opts.start_iter):
     eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
     KDE_3d = eval_kde3d.reshape(XX.shape)
 
-    # Calculate merger rate based on vt_weights flag
+    # Calculate merger rate depending on vt_weights flag
     if vt_weights:
-        Rate_3d = Nev * KDE_3d  # KDE kernels are already weighted by 1/VT
+        Rate_3d = weights_over_VT.sum() * KDE_3d  # KDE kernels are weighted by 1/VT
     else:
-        Rate_3d = Nev * KDE_3d / VT_3d
+        N = Nev if Nev > 0 else Nboots
+        Rate_3d = N * KDE_3d / VT_3d
 
     # Calculate marginals
     kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_3d)
