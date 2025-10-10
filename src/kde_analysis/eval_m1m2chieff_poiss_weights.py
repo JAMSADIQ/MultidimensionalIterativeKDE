@@ -295,12 +295,12 @@ print('Making plots')
 
 iter_tag = f"iter{opts.start_iter}_{opts.end_iter}"
 rate_m1m2_med = np.percentile(rate_m1m2, 50, axis=0)
-u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate')
+u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate')
 
-u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(KDEM1chieff, 50, axis=0), itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_1')
-u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(KDEM2chieff, 50, axis=0), itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_2')
-u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(RateM1chieff, 50, axis=0), itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_1')
-u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(RateM2chieff, 50, axis=0), itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_2')
+u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(KDEM1chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_1')
+u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(KDEM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_2')
+u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(RateM1chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_1')
+u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(RateM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_2')
 
 # 1-d rate vs masses
 u_plot.oned_rate_mass(m1grid, m2grid, ratem1_arr, ratem2_arr, tag=iter_tag, pathplot=opts.pathplot)

@@ -10,10 +10,11 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--parameters", nargs='+', default=['mass_1_source', 'mass_2_source', 'luminosity_distance', 'redshift', 'chi_eff'], help="names of params to retrieve from PE samples")
 parser.add_argument("--rsample", default=100, type=int, help="number of random samples")
 parser.add_argument("--seed", default=12345, type=int, help="Random seed")
-parser.add_argument("--replace-samples", action='store_true', help="Allow for replacement (repeated samples) when bootstrapping. Default False")
+parser.add_argument("--replace-samples", action='store_true', help="Allow for replacement (repeated samples) when resampling. Default False")
 parser.add_argument("--o2filesname", nargs='+', help="List of paths to O1 and O2 PE eventname.h5 files")
-parser.add_argument("--o3afilesname", nargs='+', help="List of paths to O3a PE eventname.h5 files only comoving frame")
-parser.add_argument("--o3bfilesname", nargs='+', help="List of paths to O3b PE eventname.h5 files only comoving frame")
+parser.add_argument("--o3afilesname", nargs='+', help="List of paths to O3a PE eventname.h5 files")
+parser.add_argument("--o3bfilesname", nargs='+', help="List of paths to O3b PE eventname.h5 files")
+parser.add_argument("--gw190521-nrsur-file", help="Replacement file to override standard GWTC samples")
 parser.add_argument("--tag", default="GWTC3", required=True, help="String to label output file")
 parser.add_argument("--inverse-chieff-prior-weight", action='store_true', help="If given, weight samples by the inverse of the PE prior over chi_eff")
 parser.add_argument("--max-a", type=float, default=0.999, help="Max spin magnitude for chieff prior calculation. Default 0.999")
@@ -115,21 +116,23 @@ def gwdata_save(datfilename, eventslist, pesamplelists, meanxi, sigmaxi):
     events std and add error to the mean values
     and third group to give 100 pe samples using seed we define
     """
-    #open an h5 file
     dataf = h5py.File(datfilename, 'w')
+
     grp_data = dataf.create_group('randdata')
     grp_initial = dataf.create_group('initialdata')
     grp_error = dataf.create_group('erroreddata')
     grp_sigma = dataf.create_group('sigmaerror')
+
     error_meanxi = np.zeros_like(meanxi)
     for i in range(len(meanxi)):
         error_meanxi[i] = np.random.normal(meanxi[i], sigmaxi[i])
         grp_data.create_dataset(eventslist[i], data=pesamplelists[i])
+
     grp_initial.create_dataset('original_mean', data=np.array(meanxi))
     grp_error.create_dataset('errored_mean', data=error_meanxi)
     grp_sigma.create_dataset('errored_sigma', data=sigmaxi)
     dataf.close()
-    return meanxi, error_meanxi, pesamplelists 
+    return dataf
 
 
 def Neff(weights):
@@ -141,6 +144,7 @@ def Neff(weights):
 
 
 for f in opts.o2filesname:
+    # O1-O2 event PE files are GWddmmyy.h5
     eventnamef = os.path.splitext(path_leaf(f))[0]
     dat = h5py.File(f, 'r')[eventnamef+'/posterior_samples']
     m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
@@ -182,7 +186,14 @@ for f in opts.o2filesname:
 
 for f in opts.o3afilesname:
     eventnamef = os.path.splitext(path_leaf(f))[0]
-    dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
+    # Allow for alternative discovery PE file for NRSur use
+    if eventnamef == 'GW190521_mixed-nocosmo' and opts.gw190521_nrsur_file:
+        f_alt = opts.gw190521_nrsur_file
+        eventnamef = os.path.splitext(path_leaf(f_alt))[0]
+        dat = h5py.File(f_alt, 'r')['NRSur7dq4/posterior_samples']
+        print('Replacing', f, 'by', f_alt, 'NRSur!')
+    else:
+        dat = h5py.File(f, 'r')['C01:Mixed/posterior_samples']
     m1vals, m2vals = dat['mass_1_source'][:], dat['mass_2_source'][:]
     print('min m1 - m2', (m1vals - m2vals).min())
 
@@ -257,8 +268,9 @@ for f in opts.o3bfilesname:
     event_data["names"].append(eventnamef)
 
 
-gwdata_save(opts.tag+'_m1src.h5', event_data["names"], event_data["m1src"]["samples"], event_data["m1src"]["mean"], event_data["m1src"]["std"])
-gwdata_save(opts.tag+'_m2src.h5', event_data["names"], event_data["m2src"]["samples"], event_data["m2src"]["mean"], event_data["m2src"]["std"])
-gwdata_save(opts.tag+'_dl.h5', event_data["names"], event_data["dL"]["samples"], event_data["dL"]["mean"], event_data["dL"]["std"])
-gwdata_save(opts.tag+'_redshift.h5', event_data["names"], event_data["redshift"]["samples"], event_data["redshift"]["mean"], event_data["redshift"]["std"])
-gwdata_save(opts.tag+'_chieff.h5', event_data["names"], event_data["chieff"]["samples"], event_data["chieff"]["mean"], event_data["chieff"]["std"])
+m1f = gwdata_save(opts.tag+'_m1src.h5', event_data["names"], event_data["m1src"]["samples"], event_data["m1src"]["mean"], event_data["m1src"]["std"])
+m2f = gwdata_save(opts.tag+'_m2src.h5', event_data["names"], event_data["m2src"]["samples"], event_data["m2src"]["mean"], event_data["m2src"]["std"])
+dlf = gwdata_save(opts.tag+'_dl.h5', event_data["names"], event_data["dL"]["samples"], event_data["dL"]["mean"], event_data["dL"]["std"])
+zf = gwdata_save(opts.tag+'_redshift.h5', event_data["names"], event_data["redshift"]["samples"], event_data["redshift"]["mean"], event_data["redshift"]["std"])
+cff = gwdata_save(opts.tag+'_chieff.h5', event_data["names"], event_data["chieff"]["samples"], event_data["chieff"]["mean"], event_data["chieff"]["std"])
+
