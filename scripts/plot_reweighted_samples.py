@@ -8,7 +8,6 @@ from matplotlib.colors import LogNorm, PowerNorm
 from matplotlib import rcParams
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src/', 'kde_analysis'))
-print(sys.path)
 
 import utils_plot as u_plot
 
@@ -40,6 +39,11 @@ opts = parser.parse_args()
 
 hdf = h5.File(opts.iterative_result, 'r')
 
+bw1 = []
+bw2 = []
+bw3 = []
+alp = []
+
 flat_samples1 = []
 flat_samples2 = []
 flat_samples3 = []
@@ -53,7 +57,6 @@ std3 = []
 
 for i in range(opts.end_iter - opts.start_iter):
     it = i + opts.discard + opts.start_iter
-    ilabel = i + opts.start_iter
     iter_name = f'iteration_{it}'
     if iter_name not in hdf:
         print(f"Iteration {it} not found in file.")
@@ -71,6 +74,11 @@ for i in range(opts.end_iter - opts.start_iter):
     std1.append(samp1.std())
     std2.append(samp2.std())
     std3.append(samp3.std())
+
+    bw1.append(hdf[iter_name]['bwx'][...])
+    bw2.append(hdf[iter_name]['bwy'][...])
+    bw3.append(hdf[iter_name]['bwz'][...])
+    alp.append(hdf[iter_name]['alpha'][...])
 
 flat_samples1 = np.concatenate(flat_samples1)
 flat_samples2 = np.concatenate(flat_samples2)
@@ -98,6 +106,21 @@ plt.semilogy()
 plt.grid(True)
 plt.savefig(opts.pathplot+f'sample_std_iters{tag}.png')
 plt.close()
+
+plt.plot(std3, bw3, '+', ms=3)
+plt.semilogy()
+plt.xlabel(r'std$(z)$')
+plt.ylabel('bwz')
+plt.savefig(opts.pathplot+f'stdz_v_bwz{tag}.png')
+plt.close()
+
+plt.plot(alp, bw3, '+', ms=3)
+plt.semilogy()
+plt.xlabel(r'alpha')
+plt.ylabel('bwz')
+plt.savefig(opts.pathplot+f'alpha_v_bwz{tag}.png')
+plt.close()
+
 
 # 1d histograms
 for i, tupl in enumerate(zip([flat_samples1, flat_samples2, flat_samples3], [True, True, False])):
