@@ -133,7 +133,7 @@ def get_averagem1m2_plot(medianlist_m1, medianlist_m2, M1, M2, median_est, times
     plt.ylim(3, 110)
     plt.tight_layout()
     plt.savefig(pathplot+'m1_m2'+plot_name+'int_wrt_Xieff_'+itertag+'.png')
-    plt.close()
+    plt.show()#close()
     return
 
 
@@ -209,7 +209,7 @@ def get_m_Xieff_plot(medianlist_m1, medianlist_xieff, M, XIEFF, medianKDE, times
     plt.tight_layout()
     times = 'times_m_' if timesM else 'lin_'
     plt.savefig(pathplot+xlabel+"_chieff_"+plot_name+"_"+times+itertag+".png")
-    plt.close()
+    plt.show()#close()
     return
 
 

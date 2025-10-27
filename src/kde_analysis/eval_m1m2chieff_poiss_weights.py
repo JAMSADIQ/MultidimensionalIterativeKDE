@@ -4,7 +4,7 @@ import argparse
 import h5py as h5
 from scipy.integrate import quad, simpson
 from scipy.interpolate import RegularGridInterpolator
-from matplotlib import use; use('agg')
+#from matplotlib import use; use('agg')
 from matplotlib import rcParams
 from popde import density_estimate as kde, adaptive_kde as akde
 import utils_plot as u_plot
@@ -103,13 +103,13 @@ def get_rate_m_chieff2D(m1_query, m2_query, Rate):
         for xid, m1 in enumerate(m1_query):
             y_valid = m2_query <= m1_query[xid]  # Only accept points with y <= x
             rate_vals = Rate_slice[y_valid, xid]
-            ratem1[xid, i] = simpson(rate_vals, m2_query[y_valid])
+            ratem1[xid, i] = simpson(rate_vals, x=m2_query[y_valid])
 
         # Compute ratem2
         for yid, m2 in enumerate(m2_query):
             x_valid = m1_query >= m2_query[yid]  # Only accept points with y <= x
             rate_vals = Rate_slice[x_valid, yid]
-            ratem2[yid, i] = simpson(rate_vals, m1_query[x_valid])
+            ratem2[yid, i] = simpson(rate_vals, x=m1_query[x_valid])
 
     return ratem1, ratem2
 
@@ -175,8 +175,8 @@ RateM2chieff = []
 boots_weighted = False
 vt_weights = False  # Flag to control VT weighting
 
-for i in range(opts.end_iter - opts.start_iter):
-    it = i + opts.discard + opts.start_iter
+for i in range(11):#opts.end_iter - opts.start_iter):
+    it = i #+ opts.discard + opts.start_iter
     ilabel = i + opts.start_iter
     if it % 5 == 0: print(it)
     iter_name = f'iteration_{it}'
@@ -193,6 +193,7 @@ for i in range(opts.end_iter - opts.start_iter):
 
     # Check if VT weighting should be used
     if 'rwvt_vals' in group:
+    #if 'Wrongrwvt_vals' in group:
         vt_weights = True
         vt_vals = group['rwvt_vals'][:] / 1e9  # change units to Gpc^3
 
@@ -265,7 +266,19 @@ for i in range(opts.end_iter - opts.start_iter):
     RateM1chieff.append(rateM1chieff)
     RateM2chieff.append(rateM2chieff)
     rate_m1m2.append(ratem1m2)
+    if i == 6:
+        u_plot.get_averagem1m2_plot(mean1, mean2, M1, M2, ratem1m2, itertag='ty', pathplot='./', plot_name='Rate')
+        u_plot.get_m_Xieff_plot(mean1, mean3, M, CF, rateM1chieff, timesM=False, itertag='Mxi', pathplot='./', plot_name='Rate', xlabel='m_1')
+    if i>0  and i%10 ==0:
+        rate_m1m2_med = np.percentile(rate_m1m2, 50, axis=0)
+        rate_m1Xieff_med = np.percentile(RateM1chieff, 50, axis=0)
+        rate_m2Xieff_med = np.percentile(RateM2chieff, 50, axis=0)
+        u_plot.get_averagem1m2_plot(mean1, mean2, M1, M2, rate_m1m2_med, itertag='Ave', pathplot='./', plot_name='Rate')
+        u_plot.get_m_Xieff_plot(mean1, mean3, M, CF, rate_m1Xieff_med, timesM=False, itertag='AveMxi', pathplot='./', plot_name='Rate', xlabel='m_1')
+        u_plot.get_m_Xieff_plot(mean2, mean3, M, CF, rate_m2Xieff_med, timesM=False, itertag='AveMxi', pathplot='./', plot_name='Rate', xlabel='m_2')
 
+quit()
+for i in range(5):
     hfintegm1m2.create_dataset(f"rate_m1m2_iter{ilabel}", data=ratem1m2)
     hfintegm1m2.create_dataset(f"rate_chim1m2_iter{ilabel}", data=ratechim1m2)
     hfintegm1m2.create_dataset(f"rate_chisqm1m2_iter{ilabel}", data=ratechisqm1m2)
