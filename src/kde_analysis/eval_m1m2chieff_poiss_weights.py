@@ -27,6 +27,17 @@ rcParams.update({
     "grid.alpha": 0.6
 })
 #'''
+# function for keep-dim in argparser
+def parse_dimensions(dim_string):
+    """
+    Parse dimension string into list of integers.
+    Examples: "0,1" -> [0,1], "0" -> [0], "[1,2]" -> [1,2]
+    """
+    # Remove brackets if present
+    dim_string = dim_string.strip('[]')
+    # Split by comma and convert to integers
+    dims = [int(d.strip()) for d in dim_string.split(',')]
+    return dims
 
 parser = argparse.ArgumentParser(description=__doc__)
 # Input data
@@ -115,19 +126,6 @@ def get_rate_m_chieff2D(m1_query, m2_query, Rate):
             ratem2[yid, i] = simpson(rate_vals, x=m1_query[x_valid])
 
     return ratem1, ratem2
-
-#####################################################################
-# function for keep-dim
-def parse_dimensions(dim_string):
-    """
-    Parse dimension string into list of integers.
-    Examples: "0,1" -> [0,1], "0" -> [0], "[1,2]" -> [1,2]
-    """
-    # Remove brackets if present
-    dim_string = dim_string.strip('[]')
-    # Split by comma and convert to integers
-    dims = [int(d.strip()) for d in dim_string.split(',')]
-    return dims
 
 #####################################################################
 # Marginalization
