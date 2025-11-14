@@ -130,6 +130,276 @@ def parse_dimensions(dim_string):
     return dims
 
 #####################################################################
+# Marginalization
+def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
+                         input_transf=None, rescale_factors=None, weights=None,
+                         apply_symmetry=False, apply_constraint=None,
+                         dimension_names=None):
+    """
+    Marginalize N-dimensional KDE data with optional symmetry and constraints.
+
+    Parameters
+    ----------
+    data_nd : np.ndarray, shape (n_samples, n_dims)
+        Original N-dimensional data points
+    per_point_bw : np.ndarray, shape (n_samples,)
+        Scalar per-point bandwidth factors
+    keep_dims : list or array-like
+        Indices of dimensions to KEEP (others integrated out)
+    input_transf : tuple, optional
+        Transformations per dimension (e.g., ('log', 'log', 'none'))
+    rescale_factors : list, optional
+        Rescale factors per dimension
+    weights : np.ndarray, optional
+        Sample weights
+    apply_symmetry : bool, optional
+        If True, duplicate samples with dims [0,1] swapped (for m1↔m2)
+    apply_constraint : str, optional
+        Constraint to apply: 'm1>=m2' or None
+    dimension_names : list, optional
+        Names for dimensions (e.g., ['m1', 'm2', 'chieff'])
+
+    Returns
+    -------
+    dict with marginalized parameters
+    """
+
+    keep_dims = np.atleast_1d(keep_dims).astype(int)
+    n_samples, n_dims = data_nd.shape
+    n_keep = len(keep_dims)
+
+    if dimension_names is None:
+        dimension_names = [f"dim{i}" for i in range(n_dims)]
+
+    # Apply symmetric duplication if requested
+    if apply_symmetry:
+        print(f"\nApplying symmetric duplication (swap dims 0↔1)...")
+
+        # Create swapped samples
+        data_swapped = data_nd.copy()
+        data_swapped[:, 0] = data_nd[:, 1]
+        data_swapped[:, 1] = data_nd[:, 0]
+
+        # Stack
+        data_nd = np.vstack([data_nd, data_swapped])
+
+        # Duplicate per-point bandwidth
+        per_point_bw = np.tile(per_point_bw, 2)
+
+        # Duplicate weights
+        if weights is not None:
+            weights = np.tile(weights, 2)
+
+        n_samples = len(data_nd)
+
+    # Apply constraint if requested
+    if apply_constraint == 'm1>=m2':
+        print(f"  Samples before constraint: {n_samples}")
+
+        valid_mask = data_nd[:, 0] >= data_nd[:, 1]
+        data_nd = data_nd[valid_mask]
+        per_point_bw = per_point_bw[valid_mask]
+
+        # Filter weights
+        if weights is not None:
+            weights = weights[valid_mask]
+
+        n_samples = len(data_nd)
+        removed = np.sum(~valid_mask)
+        print(f"  Removed: {removed} ({100*removed/len(valid_mask):.1f}%)")
+        print(f"  Samples after constraint: {n_samples}")
+
+    # Validate keep_dims
+    if np.any(keep_dims < 0) or np.any(keep_dims >= n_dims):
+        raise ValueError(f"keep_dims must be in range [0, {n_dims-1}]")
+
+    kept_names = [dimension_names[i] for i in keep_dims]
+    removed_names = [dimension_names[i] for i in range(n_dims) if i not in keep_dims]
+
+    print(f"\nMarginalizing from {n_dims}D to {n_keep}D")
+    print(f"  Keeping: {kept_names}")
+    print(f"  Integrating out: {removed_names}")
+
+    # 1. Marginalize data (just select columns)
+    data_marginalized = data_nd[:, keep_dims]
+    print(f"  Data: ({n_samples}, {n_dims}) → {data_marginalized.shape}")
+
+    # 2. Per-point bandwidth stays the same (scalar per sample)
+    print(f"  Bandwidth: ({len(per_point_bw)},) [unchanged - per-point scalars]")
+
+    # 3. Marginalize transformations
+    if input_transf is not None:
+        input_transf_marg = tuple(input_transf[i] for i in keep_dims)
+        print(f"  Transformations: {input_transf} → {input_transf_marg}")
+    else:
+        input_transf_marg = None
+
+    # 4. Marginalize rescale factors
+    if rescale_factors is not None:
+        rescale_marg = [rescale_factors[i] for i in keep_dims]
+        print(f"  Rescale: {rescale_factors} → {rescale_marg}")
+    else:
+        rescale_marg = None
+
+    return {
+        'data': data_marginalized,
+        'bandwidth': per_point_bw,  # Same per-point bandwidths
+        'input_transf': input_transf_marg,
+        'rescale': rescale_marg,
+        'weights': weights,
+        'kept_dims': list(keep_dims),
+        'dimension_names': kept_names,
+        'original_dims': n_dims
+    }
+
+
+def create_marginalized_kde(
+    symmetric_samples,
+    per_point_bw,
+    keep_dims,
+    input_transf,
+    rescale_factors,
+    weights,
+    m1grid,
+    m2grid,
+    cfgrid,
+    alpha,
+    group,
+    apply_symmetry=False,
+    apply_constraint='m1>=m2',
+    dimension_names=None
+):
+    """
+    Create and evaluate a marginalized KDE for specified dimensions.
+
+    Parameters
+    ----------
+    symmetric_samples : np.ndarray, shape (n_samples, 3)
+        Full 3D samples with symmetry already applied
+    per_point_bw : np.ndarray, shape (n_samples,)
+        Scalar per-point bandwidth for each sample
+    keep_dims : list of int
+        Dimensions to keep (e.g., [0,1] for 2D, [0] for 1D, [0,1,2] for 3D)
+    input_transf : tuple
+        Input transformations for all dimensions
+    rescale_factors : list
+        Rescale factors for all dimensions
+    weights : np.ndarray or None
+        Sample weights
+    m1grid, m2grid, cfgrid : np.ndarray
+        Grid arrays for each dimension
+    alpha : float
+        Adaptive bandwidth parameter (only used if 'perpoint_bws' not in group)
+    group : h5py.Group
+        HDF5 group containing 'perpoint_bws' key
+    apply_symmetry : bool, default False
+        Whether to apply symmetry (usually False if already applied)
+    apply_constraint : str or None, default 'm1>=m2'
+        Constraint to apply (e.g., 'm1>=m2')
+    dimension_names : list, optional
+        Names of dimensions (default: ['m1', 'm2', 'chieff'])
+
+    Returns
+    -------
+    dict with keys:
+        'kde_values': Evaluated KDE on grid (shape depends on n_dims)
+        'grid_shape': Shape of the grid
+        'eval_samples': Flattened evaluation samples
+        'marginalized_result': Output from marginalize_kde_data
+        'kde_object': The trained KDE object
+    """
+
+    if dimension_names is None:
+        dimension_names = ['m1', 'm2', 'chieff']
+
+    # Grid mapping
+    grid_map = {0: m1grid, 1: m2grid, 2: cfgrid}
+
+    n_dims = len(keep_dims)
+
+    print(f"\n{'='*70}")
+    print(f"Creating {n_dims}D KDE (dimensions: {keep_dims})")
+    print(f"{'='*70}")
+
+    # Step 1: Marginalize the data
+    result = marginalize_kde_data(
+        data_nd=symmetric_samples,
+        per_point_bw=per_point_bw,
+        keep_dims=keep_dims,
+        input_transf=input_transf,
+        rescale_factors=rescale_factors,
+        weights=weights,
+        apply_symmetry=apply_symmetry,
+        apply_constraint=apply_constraint,
+        dimension_names=dimension_names
+    )
+
+    # Step 2: Create evaluation grid
+    print(f"\nCreating {n_dims}D evaluation grid...")
+    grids_to_use = [grid_map[dim] for dim in keep_dims]
+
+    if n_dims == 1:
+        eval_samples = grids_to_use[0].reshape(-1, 1)
+        grid_shape = (len(grids_to_use[0]),)
+    elif n_dims == 2:
+        mesh_grids = np.meshgrid(grids_to_use[0], grids_to_use[1], indexing='ij')
+        eval_samples = np.column_stack([g.ravel() for g in mesh_grids])
+        grid_shape = mesh_grids[0].shape
+    elif n_dims == 3:
+        mesh_grids = np.meshgrid(grids_to_use[0], grids_to_use[1],
+                                  grids_to_use[2], indexing='ij')
+        eval_samples = np.column_stack([g.ravel() for g in mesh_grids])
+        grid_shape = mesh_grids[0].shape
+    else:
+        raise ValueError(f"Unsupported number of dimensions: {n_dims}")
+
+    print(f"  Grid shape: {grid_shape}")
+    print(f"  Evaluation samples: {eval_samples.shape}")
+
+    # Step 3: Create KDE
+    print(f"\nCreating {n_dims}D KDE object...")
+    if 'perpoint_bws' in group:
+        train_kde = kde.VariableBwKDEPy(
+            result['data'],
+            result['weights'],
+            input_transf=result['input_transf'],
+            stdize=True,
+            rescale=result['rescale'],
+            bandwidth=result['bandwidth']
+        )
+        print(f"  Using VariableBwKDEPy with per-point bandwidths")
+    else:
+        train_kde = akde.AdaptiveBwKDE(
+            result['data'],
+            result['weights'],
+            input_transf=result['input_transf'],
+            stdize=True,
+            rescale=result['rescale'],
+            alpha=alpha
+        )
+        print(f"  Using AdaptiveBwKDE with alpha={alpha}")
+
+    # Step 4: Evaluate KDE
+    print(f"\nEvaluating {n_dims}D KDE on grid...")
+    eval_kde = train_kde.evaluate_with_transf(eval_samples)
+
+    if n_dims == 1:
+        KDE_values = eval_kde.ravel()
+    else:
+        KDE_values = eval_kde.reshape(grid_shape)
+
+    print(f"  KDE values shape: {KDE_values.shape}")
+    print(f"  KDE min/max: [{KDE_values.min():.2e}, {KDE_values.max():.2e}]")
+    print(f"{'='*70}\n")
+
+    return {
+        'kde_values': KDE_values,
+        'grid_shape': grid_shape,
+        'eval_samples': eval_samples,
+        'marginalized_result': result,
+        'kde_object': train_kde
+    }
+###################################################################
 # Get original mean sample points
 if opts.samplesx1 and opts.samplesx2 and opts.samplesx3:
     with h5.File(opts.samplesx1, 'r') as f1:
