@@ -26,18 +26,6 @@ rcParams.update({
     "grid.linewidth": 1.0,
     "grid.alpha": 0.6
 })
-#'''
-# function for keep-dim in argparser
-def parse_dimensions(dim_string):
-    """
-    Parse dimension string into list of integers.
-    Examples: "0,1" -> [0,1], "0" -> [0], "[1,2]" -> [1,2]
-    """
-    # Remove brackets if present
-    dim_string = dim_string.strip('[]')
-    # Split by comma and convert to integers
-    dims = [int(d.strip()) for d in dim_string.split(',')]
-    return dims
 
 parser = argparse.ArgumentParser(description=__doc__)
 # Input data
@@ -53,9 +41,7 @@ parser.add_argument('--discard', default=100, type=int, help='discard first DISC
 parser.add_argument('--start-iter', type=int, help='start at iteration START_ITER after discards')
 parser.add_argument('--end-iter', type=int, help='end at iteration END_ITER after discards')
 #  Marginalization in any dimension
-parser.add_argument('--keep-dims', type=parse_dimensions,
-                    default='0,1,2',
-                    help='Dimensions to keep (e.g., "0,1" or "0" or "[1,2]")')
+parser.add_argument('--keep-dims', type=int, nargs='+', default=[0, 1, 2], help='Dimensions to keep (e.g., "0 1" or "0" or "1 2")')
 # Plots and saving data
 parser.add_argument('--pathplot', default='./', help='public_html path for plots')
 parser.add_argument('--output-tag', required=True)
