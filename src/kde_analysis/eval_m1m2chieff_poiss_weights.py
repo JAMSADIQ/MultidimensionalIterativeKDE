@@ -40,6 +40,7 @@ parser.add_argument('--vt-multiplier', type=float, help='Multiplier to scale VTs
 parser.add_argument('--discard', default=100, type=int, help='discard first DISCARD iterations')
 parser.add_argument('--start-iter', type=int, help='start at iteration START_ITER after discards')
 parser.add_argument('--end-iter', type=int, help='end at iteration END_ITER after discards')
+parser.add_argument('--integrate-kde', type=str, default='marginalized', choices=['marginalized', 'numeric'], help='KDE integration method: "marginalized" (integrate analytically) or "numeric" (3D KDE then numerical integration)')
 #  Marginalization in any dimension
 parser.add_argument('--keep-dims', type=int, nargs='+', default=[0, 1, 2], help='Dimensions to keep (e.g., "0 1" or "0" or "1 2")')
 # Plots and saving data
@@ -125,7 +126,7 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
     Parameters
     ----------
     data_nd : np.ndarray, shape (n_samples, n_dims)
-        Original N-dimensional data points
+        Original N-dimensional data points (can be non-symmetric)
     per_point_bw : np.ndarray, shape (n_samples,)
         Scalar per-point bandwidth factors
     keep_dims : list or array-like
@@ -136,9 +137,9 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
         Rescale factors per dimension
     weights : np.ndarray, optional
         Sample weights
-    apply_symmetry : bool, optional
+    apply_symmetry : bool, default False
         If True, duplicate samples with dims [0,1] swapped (for m1↔m2)
-    apply_constraint : str, optional
+    apply_constraint : str or None, default None
         Constraint to apply: 'm1>=m2' or None
     dimension_names : list, optional
         Names for dimensions (e.g., ['m1', 'm2', 'chieff'])
@@ -157,14 +158,11 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
 
     # Apply symmetric duplication if requested
     if apply_symmetry:
-        print(f"\nApplying symmetric duplication (swap dims 0↔1)...")
-
         # Create swapped samples
         data_swapped = data_nd.copy()
         data_swapped[:, 0] = data_nd[:, 1]
         data_swapped[:, 1] = data_nd[:, 0]
 
-        # Stack
         data_nd = np.vstack([data_nd, data_swapped])
 
         # Duplicate per-point bandwidth
@@ -178,8 +176,6 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
 
     # Apply constraint if requested
     if apply_constraint == 'm1>=m2':
-        print(f"  Samples before constraint: {n_samples}")
-
         valid_mask = data_nd[:, 0] >= data_nd[:, 1]
         data_nd = data_nd[valid_mask]
         per_point_bw = per_point_bw[valid_mask]
@@ -190,8 +186,6 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
 
         n_samples = len(data_nd)
         removed = np.sum(~valid_mask)
-        print(f"  Removed: {removed} ({100*removed/len(valid_mask):.1f}%)")
-        print(f"  Samples after constraint: {n_samples}")
 
     # Validate keep_dims
     if np.any(keep_dims < 0) or np.any(keep_dims >= n_dims):
@@ -200,28 +194,18 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
     kept_names = [dimension_names[i] for i in keep_dims]
     removed_names = [dimension_names[i] for i in range(n_dims) if i not in keep_dims]
 
-    print(f"\nMarginalizing from {n_dims}D to {n_keep}D")
-    print(f"  Keeping: {kept_names}")
-    print(f"  Integrating out: {removed_names}")
-
     # 1. Marginalize data (just select columns)
     data_marginalized = data_nd[:, keep_dims]
-    print(f"  Data: ({n_samples}, {n_dims}) → {data_marginalized.shape}")
 
-    # 2. Per-point bandwidth stays the same (scalar per sample)
-    print(f"  Bandwidth: ({len(per_point_bw)},) [unchanged - per-point scalars]")
-
-    # 3. Marginalize transformations
+    # 2. Marginalize transformations
     if input_transf is not None:
         input_transf_marg = tuple(input_transf[i] for i in keep_dims)
-        print(f"  Transformations: {input_transf} → {input_transf_marg}")
     else:
         input_transf_marg = None
 
-    # 4. Marginalize rescale factors
+    # 3. Marginalize rescale factors
     if rescale_factors is not None:
         rescale_marg = [rescale_factors[i] for i in keep_dims]
-        print(f"  Rescale: {rescale_factors} → {rescale_marg}")
     else:
         rescale_marg = None
 
@@ -238,7 +222,7 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
 
 
 def create_marginalized_kde(
-    symmetric_samples,
+    samples,
     per_point_bw,
     keep_dims,
     input_transf,
@@ -249,7 +233,7 @@ def create_marginalized_kde(
     cfgrid,
     alpha,
     group,
-    apply_symmetry=False,
+    apply_symmetry=True,
     apply_constraint='m1>=m2',
     dimension_names=None
 ):
@@ -258,8 +242,9 @@ def create_marginalized_kde(
 
     Parameters
     ----------
-    symmetric_samples : np.ndarray, shape (n_samples, 3)
-        Full 3D samples with symmetry already applied
+    samples : np.ndarray, shape (n_samples, 3)
+        Original 3D samples (non-symmetric). Symmetry will be applied 
+        internally if apply_symmetry=True.
     per_point_bw : np.ndarray, shape (n_samples,)
         Scalar per-point bandwidth for each sample
     keep_dims : list of int
@@ -276,10 +261,10 @@ def create_marginalized_kde(
         Adaptive bandwidth parameter (only used if 'perpoint_bws' not in group)
     group : h5py.Group
         HDF5 group containing 'perpoint_bws' key
-    apply_symmetry : bool, default False
-        Whether to apply symmetry (usually False if already applied)
+    apply_symmetry : bool, default True
+        Whether to apply symmetry by swapping m1↔m2 (dims 0↔1)
     apply_constraint : str or None, default 'm1>=m2'
-        Constraint to apply (e.g., 'm1>=m2')
+        Constraint to apply. Options: 'm1>=m2' or None
     dimension_names : list, optional
         Names of dimensions (default: ['m1', 'm2', 'chieff'])
 
@@ -301,13 +286,9 @@ def create_marginalized_kde(
 
     n_dims = len(keep_dims)
 
-    print(f"\n{'='*70}")
-    print(f"Creating {n_dims}D KDE (dimensions: {keep_dims})")
-    print(f"{'='*70}")
-
-    # Step 1: Marginalize the data
+    # Step 1: Marginalize the data (this will apply symmetry and constraint)
     result = marginalize_kde_data(
-        data_nd=symmetric_samples,
+        data_nd=samples,
         per_point_bw=per_point_bw,
         keep_dims=keep_dims,
         input_transf=input_transf,
@@ -319,7 +300,6 @@ def create_marginalized_kde(
     )
 
     # Step 2: Create evaluation grid
-    print(f"\nCreating {n_dims}D evaluation grid...")
     grids_to_use = [grid_map[dim] for dim in keep_dims]
 
     if n_dims == 1:
@@ -337,11 +317,7 @@ def create_marginalized_kde(
     else:
         raise ValueError(f"Unsupported number of dimensions: {n_dims}")
 
-    print(f"  Grid shape: {grid_shape}")
-    print(f"  Evaluation samples: {eval_samples.shape}")
-
     # Step 3: Create KDE
-    print(f"\nCreating {n_dims}D KDE object...")
     if 'perpoint_bws' in group:
         train_kde = kde.VariableBwKDEPy(
             result['data'],
@@ -351,7 +327,6 @@ def create_marginalized_kde(
             rescale=result['rescale'],
             bandwidth=result['bandwidth']
         )
-        print(f"  Using VariableBwKDEPy with per-point bandwidths")
     else:
         train_kde = akde.AdaptiveBwKDE(
             result['data'],
@@ -361,20 +336,14 @@ def create_marginalized_kde(
             rescale=result['rescale'],
             alpha=alpha
         )
-        print(f"  Using AdaptiveBwKDE with alpha={alpha}")
 
     # Step 4: Evaluate KDE
-    print(f"\nEvaluating {n_dims}D KDE on grid...")
     eval_kde = train_kde.evaluate_with_transf(eval_samples)
 
     if n_dims == 1:
         KDE_values = eval_kde.ravel()
     else:
         KDE_values = eval_kde.reshape(grid_shape)
-
-    print(f"  KDE values shape: {KDE_values.shape}")
-    print(f"  KDE min/max: [{KDE_values.min():.2e}, {KDE_values.max():.2e}]")
-    print(f"{'='*70}\n")
 
     return {
         'kde_values': KDE_values,
@@ -444,8 +413,8 @@ RateM2chieff = []
 boots_weighted = False
 vt_weights = False  # Flag to control VT weighting
 
-for i in range(11):#opts.end_iter - opts.start_iter):
-    it = i #+ opts.discard + opts.start_iter
+for i in range(opts.end_iter - opts.start_iter):
+    it = i + opts.discard + opts.start_iter
     ilabel = i + opts.start_iter
     if it % 5 == 0: print(it)
     iter_name = f'iteration_{it}'
@@ -476,91 +445,227 @@ for i in range(11):#opts.end_iter - opts.start_iter):
     m1 = samples[:, 0]  # First column corresponds to m1
     m2 = samples[:, 1]  # Second column corresponds to m2
     cf = samples[:, 2]
-    samples2 = np.vstack((m2, m1, cf)).T
-    # Combine both samples into one array
-    symmetric_samples = np.vstack((samples, samples2))
+    ########################
+    for i in range(1260, 2010, 1):
+    ilabel = i
+    iter_name = f'iteration_{ilabel}'
+    if iter_name not in hdf:
+        print(f"Iteration {i} not found in file.")
+        quit()
 
-    # Determine weights based on vt_weights flag
+    group = hdf[iter_name]
+
+    # Load bootstrap weights if available
+    boots_weighted = False
+    if 'bootstrap_weights' in group:
+        boots_weighted = True
+        poisson_weights = group['bootstrap_weights'][:]
+        assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
+        Nboots = poisson_weights.sum()
+
+    # Load VT weights if available
+    vt_weights = False
+    if 'rwvt_vals' in group:
+        vt_weights = True
+        vt_vals = group['rwvt_vals'][:] / 1e9  # Convert to Gpc^3
+
+    # Load samples and parameters
+    samples = group['rwsamples'][:]  # Non-symmetric samples (n, 3)
+    alpha = group['alpha'][()]
+    bwx = group['bwx'][()]
+    bwy = group['bwy'][()]
+    bwz = group['bwz'][()]
+
+    # Compute weights (no duplication yet)
     if boots_weighted:
         if vt_weights:
             weights_over_VT = poisson_weights / vt_vals
-            # Duplicate weights for symmetric samples (m1 <-> m2)
-            weights = np.tile(weights_over_VT, 2)
+            weights = weights_over_VT
         else:
-            weights = np.tile(poisson_weights, 2)
+            weights = poisson_weights
     else:
         weights = None
 
-    # If per-point bandwidth exists use it directly, otherwise
-    # use the adaptive KDE algorithm
-    if 'perpoint_bws' in group:
+
+    # ========== argparse option based on integrate_kde option ==========
+    if opts.integrate_kde == 'marginalized':
+        # ========== MARGINALIZED KDE METHOD ==========
         per_point_bandwidth = group['perpoint_bws'][...]
+        # Common parameters for all KDE calls
+        common_params = {
+            'per_point_bw': per_point_bandwidth,
+            'input_transf': ('log', 'log', 'none'),
+            'rescale_factors': [1/bwx, 1/bwy, 1/bwz],
+            'weights': weights,
+            'm1grid': m1grid,
+            'm2grid': m2grid,
+            'cfgrid': cfgrid,
+            'alpha': alpha,
+            'group': group,
+            'apply_symmetry': True,
+            'dimension_names': ['m1', 'm2', 'chieff']
+        }
 
-        train_kde = kde.VariableBwKDEPy(
-            symmetric_samples,
-            weights,
-            input_transf=('log', 'log', 'none'),
-            stdize=True,
-            rescale=[1/bwx, 1/bwy, 1/bwz],
-            bandwidth=np.tile(per_point_bandwidth, 2)
+        # Helper function to determine constraint based on keep_dims
+        def get_constraint(keep_dims):
+            """Apply constraint unless we're keeping full m1-m2 plane"""
+            if set(keep_dims) == {0, 1}:
+                return None
+            return 'm1>=m2'
+
+        # ========== 2D: M1 vs Chieff ==========
+        keep_dims = [0, 2]
+        kde_result = create_marginalized_kde(
+            samples=samples,
+            keep_dims=keep_dims,
+            apply_constraint=get_constraint(keep_dims),
+            **common_params
         )
-    else:
-        train_kde = akde.AdaptiveBwKDE(
-            symmetric_samples,
-            weights,
-            input_transf=('log', 'log', 'none'),
-            stdize=True,
-            rescale=[1/bwx, 1/bwy, 1/bwz],
-            alpha=alpha
+        kdeM1chieff = kde_result['kde_values']
+        rateM1chieff = compute_rate_from_kde(
+            kdeM1chieff, VT_3d,
+            weights_over_VT=weights_over_VT if vt_weights else None,
+            N=Nev,
+            vt_weights=vt_weights
         )
 
-    # Evaluate KDE
-    eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
-    KDE_3d = eval_kde3d.reshape(XX.shape)
+        # ========== 2D: M2 vs Chieff ==========
+        keep_dims = [1, 2]
+        kde_result = create_marginalized_kde(
+            samples=samples,
+            keep_dims=keep_dims,
+            apply_constraint=get_constraint(keep_dims),
+            **common_params
+        )
+        kdeM2chieff = kde_result['kde_values']
+        rateM2chieff = compute_rate_from_kde(
+            kdeM2chieff, VT_3d,
+            weights_over_VT=weights_over_VT if vt_weights else None,
+            N=Nev,
+            vt_weights=vt_weights
+        )
 
-    # Calculate merger rate depending on vt_weights flag
-    if vt_weights:
-        Rate_3d = weights_over_VT.sum() * KDE_3d  # KDE kernels are weighted by 1/VT
-    else:
-        N = Nev if Nev > 0 else Nboots
-        Rate_3d = N * KDE_3d / VT_3d
+        # ========== 2D: M1 vs M2 (no constraint) ==========
+        keep_dims = [0, 1]
+        kde_result = create_marginalized_kde(
+            samples=samples,
+            keep_dims=keep_dims,
+            apply_constraint=get_constraint(keep_dims),
+            **common_params
+        )
+        KDEm1m2 = kde_result['kde_values']
+        ratem1m2 = compute_rate_from_kde(
+            KDEm1m2, VT_3d,
+            weights_over_VT=weights_over_VT if vt_weights else None,
+            N=Nev,
+            vt_weights=vt_weights
+        )
 
-    # Calculate marginals
-    kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_3d)
-    rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate_3d)
-    ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(CF, cfgrid, Rate_3d)
+        # ========== 1D: M1 only ==========
+        keep_dims = [0]
+        kde_result = create_marginalized_kde(
+            samples=samples,
+            keep_dims=keep_dims,
+            apply_constraint=get_constraint(keep_dims),
+            **common_params
+        )
+        KDE_m1 = kde_result['kde_values']
+        rateM1 = compute_rate_from_kde(
+            KDE_m1, VT_3d,
+            weights_over_VT=weights_over_VT if vt_weights else None,
+            N=Nev,
+            vt_weights=vt_weights
+        )
+
+        # ========== 1D: M2 only ==========
+        keep_dims = [1]
+        kde_result = create_marginalized_kde(
+            samples=samples,
+            keep_dims=keep_dims,
+            apply_constraint=get_constraint(keep_dims),
+            **common_params
+        )
+        KDE_m2 = kde_result['kde_values']
+        rateM2 = compute_rate_from_kde(
+            KDE_m2, VT_3d,
+            weights_over_VT=weights_over_VT if vt_weights else None,
+            N=Nev,
+            vt_weights=vt_weights
+        )
+
+    else:  # opts.integrate_kde == 'numeric'
+        # ========== FULL 3D KDE METHOD ==========
+        # Create symmetric samples manually
+        m1 = samples[:, 0]
+        m2 = samples[:, 1]
+        cf = samples[:, 2]
+        samples2 = np.vstack((m2, m1, cf)).T
+        symmetric_samples = np.vstack((samples, samples2))
+
+        # Duplicate weights
+        if weights is not None:
+            weights = np.tile(weights, 2)
+
+        # Create 3D KDE
+        if 'perpoint_bws' in group:
+            per_point_bandwidth = group['perpoint_bws'][...]
+            train_kde = kde.VariableBwKDEPy(
+                symmetric_samples,
+                weights,
+                input_transf=('log', 'log', 'none'),
+                stdize=True,
+                rescale=[1/bwx, 1/bwy, 1/bwz],
+                bandwidth=np.tile(per_point_bandwidth, 2)
+            )
+        else:
+            train_kde = akde.AdaptiveBwKDE(
+                symmetric_samples,
+                weights,
+                input_transf=('log', 'log', 'none'),
+                stdize=True,
+                rescale=[1/bwx, 1/bwy, 1/bwz],
+                alpha=alpha
+            )
+
+        # Evaluate 3D KDE
+        eval_kde3d = train_kde.evaluate_with_transf(eval_samples)
+        KDE_3d = eval_kde3d.reshape(XX.shape)
+
+        # Compute 3D rate
+        if vt_weights:
+            Rate_3d = weights_over_VT.sum() * KDE_3d
+        else:
+            N = Nev if Nev > 0 else Nboots
+            Rate_3d = N * KDE_3d / VT_3d
+
+        # Calculate marginals by numerical integration
+        kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_3d)
+        rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate_3d)
+        ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(CF, cfgrid, Rate_3d)
+        rateM1, rateM2 = get_rate_m_oneD(m1grid, m2grid, ratem1m2)
+
+        
+
+
 
     KDEM1chieff.append(kdeM1chieff)
     KDEM2chieff.append(kdeM2chieff)
     RateM1chieff.append(rateM1chieff)
     RateM2chieff.append(rateM2chieff)
     rate_m1m2.append(ratem1m2)
-    if i == 6:
-        u_plot.get_averagem1m2_plot(mean1, mean2, M1, M2, ratem1m2, itertag='ty', pathplot='./', plot_name='Rate')
-        u_plot.get_m_Xieff_plot(mean1, mean3, M, CF, rateM1chieff, timesM=False, itertag='Mxi', pathplot='./', plot_name='Rate', xlabel='m_1')
-    if i>0  and i%10 ==0:
-        rate_m1m2_med = np.percentile(rate_m1m2, 50, axis=0)
-        rate_m1Xieff_med = np.percentile(RateM1chieff, 50, axis=0)
-        rate_m2Xieff_med = np.percentile(RateM2chieff, 50, axis=0)
-        u_plot.get_averagem1m2_plot(mean1, mean2, M1, M2, rate_m1m2_med, itertag='Ave', pathplot='./', plot_name='Rate')
-        u_plot.get_m_Xieff_plot(mean1, mean3, M, CF, rate_m1Xieff_med, timesM=False, itertag='AveMxi', pathplot='./', plot_name='Rate', xlabel='m_1')
-        u_plot.get_m_Xieff_plot(mean2, mean3, M, CF, rate_m2Xieff_med, timesM=False, itertag='AveMxi', pathplot='./', plot_name='Rate', xlabel='m_2')
-
-quit()
-for i in range(5):
+    ratem1_arr.append(rateM1)
+    ratem2_arr.append(rateM2)
     hfintegm1m2.create_dataset(f"rate_m1m2_iter{ilabel}", data=ratem1m2)
-    hfintegm1m2.create_dataset(f"rate_chim1m2_iter{ilabel}", data=ratechim1m2)
-    hfintegm1m2.create_dataset(f"rate_chisqm1m2_iter{ilabel}", data=ratechisqm1m2)
     hfintegm1chieff.create_dataset(f"rate_m1cf_iter{ilabel}", data=rateM1chieff)
     hfintegm2chieff.create_dataset(f"rate_m2cf_iter{ilabel}", data=rateM2chieff)
 
     hfintegm1chieff.create_dataset(f"kde_m1cf_iter{ilabel}", data=kdeM1chieff)
     hfintegm2chieff.create_dataset(f"kde_m2cf_iter{ilabel}", data=kdeM2chieff)
+    
 
-    # get oneD output
-    rateM1, rateM2 = get_rate_m_oneD(m1grid, m2grid, ratem1m2)
-    ratem1_arr.append(rateM1)
-    ratem2_arr.append(rateM2)
+    if opts.integrate_kde == 'numeric':
+        hfintegm1m2.create_dataset(f"rate_chim1m2_iter{ilabel}", data=ratechim1m2)
+        hfintegm1m2.create_dataset(f"rate_chisqm1m2_iter{ilabel}", data=ratechisqm1m2)
 
     hfintegm1m2.create_dataset(f"rate_m1_iter{ilabel}", data=rateM1)
     hfintegm1m2.create_dataset(f"rate_m2_iter{ilabel}", data=rateM2)
