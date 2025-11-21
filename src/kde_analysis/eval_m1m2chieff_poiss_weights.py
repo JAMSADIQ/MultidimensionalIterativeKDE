@@ -413,9 +413,10 @@ RateM2chieff = []
 boots_weighted = False
 vt_weights = False  # Flag to control VT weighting
 
-for i in range(opts.end_iter - opts.start_iter):
-    it = i + opts.discard + opts.start_iter
-    ilabel = i + opts.start_iter
+for i in range(1260, 2010, 1):
+#for i in range(opts.end_iter - opts.start_iter):
+    it = i #+ opts.discard + opts.start_iter
+    ilabel = i #+ opts.start_iter
     if it % 5 == 0: print(it)
     iter_name = f'iteration_{it}'
     if iter_name not in hdf:
@@ -446,35 +447,6 @@ for i in range(opts.end_iter - opts.start_iter):
     m2 = samples[:, 1]  # Second column corresponds to m2
     cf = samples[:, 2]
     ########################
-    for i in range(1260, 2010, 1):
-    ilabel = i
-    iter_name = f'iteration_{ilabel}'
-    if iter_name not in hdf:
-        print(f"Iteration {i} not found in file.")
-        quit()
-
-    group = hdf[iter_name]
-
-    # Load bootstrap weights if available
-    boots_weighted = False
-    if 'bootstrap_weights' in group:
-        boots_weighted = True
-        poisson_weights = group['bootstrap_weights'][:]
-        assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
-        Nboots = poisson_weights.sum()
-
-    # Load VT weights if available
-    vt_weights = False
-    if 'rwvt_vals' in group:
-        vt_weights = True
-        vt_vals = group['rwvt_vals'][:] / 1e9  # Convert to Gpc^3
-
-    # Load samples and parameters
-    samples = group['rwsamples'][:]  # Non-symmetric samples (n, 3)
-    alpha = group['alpha'][()]
-    bwx = group['bwx'][()]
-    bwy = group['bwy'][()]
-    bwz = group['bwz'][()]
 
     # Compute weights (no duplication yet)
     if boots_weighted:
@@ -485,7 +457,6 @@ for i in range(opts.end_iter - opts.start_iter):
             weights = poisson_weights
     else:
         weights = None
-
 
     # ========== argparse option based on integrate_kde option ==========
     if opts.integrate_kde == 'marginalized':
@@ -679,6 +650,16 @@ hfintegm1chieff.close()
 hfintegm2chieff.close()
 
 print('Making plots')
+
+rate_m1m2_med = np.percentile(rate_m1m2[:], 50, axis=0)
+rate_m1Xieff_med = np.percentile(RateM1chieff[:], 50, axis=0)
+rate_m2Xieff_med = np.percentile(RateM2chieff[:], 50, axis=0)
+
+u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, timesM=True, itertag=f'{ilabel}', pathplot='PEprior314/NCombined_', plot_name='Rate')
+u_plot.m_chieff_contour(mean1, mean3, M, CF, rate_m1Xieff_med, timesM=True, itertag=f'{ilabel}', pathplot='PEprior314/NCombined_', plot_name='Rate', xlabel='m_1')
+u_plot.m_chieff_contour(mean1, mean3, M, CF, rate_m2Xieff_med, timesM=True, itertag=f'{ilabel}', pathplot='PEprior314/NCombined_', plot_name='Rate', xlabel='m_2')
+u_plot.oned_rate_mass(m1grid, m2grid, ratem1_arr, ratem2_arr, tag='', pathplot='PEprior314/NCombined_')
+quit()
 
 iter_tag = f"iter{opts.start_iter}_{opts.end_iter}"
 rate_m1m2_med = np.percentile(rate_m1m2, 50, axis=0)
