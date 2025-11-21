@@ -529,14 +529,13 @@ for i in range(opts.end_iter - opts.start_iter):
 
         # ========== 2D: M1 vs Chieff ==========
         keep_dims = [0, 2]
-        symmetric_factor = 1./2
         kde_result = create_marginalized_kde(
             samples=samples,
             keep_dims=keep_dims,
             apply_constraint=get_constraint(keep_dims),
             **common_params
         )
-        kdeM1chieff = kde_result['kde_values'] * symmetric_factor
+        kdeM1chieff = kde_result['kde_values']
         rateM1chieff = compute_rate_from_kde(
             kdeM1chieff, VT_3d,
             weights_over_VT=weights_over_VT if vt_weights else None,
@@ -546,14 +545,13 @@ for i in range(opts.end_iter - opts.start_iter):
 
         # ========== 2D: M2 vs Chieff ==========
         keep_dims = [1, 2]
-        symmetric_factor = 1./2
         kde_result = create_marginalized_kde(
             samples=samples,
             keep_dims=keep_dims,
             apply_constraint=get_constraint(keep_dims),
             **common_params
         )
-        kdeM2chieff = kde_result['kde_values']*symmetric_factor
+        kdeM2chieff = kde_result['kde_values']
         rateM2chieff = compute_rate_from_kde(
             kdeM2chieff, VT_3d,
             weights_over_VT=weights_over_VT if vt_weights else None,
@@ -563,14 +561,13 @@ for i in range(opts.end_iter - opts.start_iter):
 
         # ========== 2D: M1 vs M2 (no constraint) ==========
         keep_dims = [0, 1]
-        symmetric_factor = 1.
         kde_result = create_marginalized_kde(
             samples=samples,
             keep_dims=keep_dims,
             apply_constraint=get_constraint(keep_dims),
             **common_params
         )
-        KDEm1m2 = kde_result['kde_values']*symmetric_factor
+        KDEm1m2 = kde_result['kde_values']
         ratem1m2 = compute_rate_from_kde(
             KDEm1m2, VT_3d,
             weights_over_VT=weights_over_VT if vt_weights else None,
@@ -578,37 +575,6 @@ for i in range(opts.end_iter - opts.start_iter):
             vt_weights=vt_weights
         )
 
-        # ========== 1D: M1 only ==========
-        keep_dims = [0]
-        kde_result = create_marginalized_kde(
-            samples=samples,
-            keep_dims=keep_dims,
-            apply_constraint=get_constraint(keep_dims),
-            **common_params
-        )
-        KDE_m1 = kde_result['kde_values']
-        rateM1 = compute_rate_from_kde(
-            KDE_m1, VT_3d,
-            weights_over_VT=weights_over_VT if vt_weights else None,
-            N=Nev,
-            vt_weights=vt_weights
-        )
-
-        # ========== 1D: M2 only ==========
-        keep_dims = [1]
-        kde_result = create_marginalized_kde(
-            samples=samples,
-            keep_dims=keep_dims,
-            apply_constraint=get_constraint(keep_dims),
-            **common_params
-        )
-        KDE_m2 = kde_result['kde_values']
-        rateM2 = compute_rate_from_kde(
-            KDE_m2, VT_3d,
-            weights_over_VT=weights_over_VT if vt_weights else None,
-            N=Nev,
-            vt_weights=vt_weights
-        )
 
     else:  # opts.integrate_kde == 'numeric'
         # ========== FULL 3D KDE METHOD ==========
@@ -659,10 +625,9 @@ for i in range(opts.end_iter - opts.start_iter):
         kdeM1chieff, kdeM2chieff = get_rate_m_chieff2D(m1grid, m2grid, KDE_3d)
         rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate_3d)
         ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(CF, cfgrid, Rate_3d)
-        rateM1, rateM2 = get_rate_m_oneD(m1grid, m2grid, ratem1m2)
 
-        
-
+    #Get one dimensional rates using ratem1m2 by numerically integrating over m1>m2
+    rateM1, rateM2 = get_rate_m_oneD(m1grid, m2grid, ratem1m2)
 
 
     KDEM1chieff.append(kdeM1chieff)
