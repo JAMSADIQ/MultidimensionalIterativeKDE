@@ -352,6 +352,52 @@ def create_marginalized_kde(
         'marginalized_result': result,
         'kde_object': train_kde
     }
+
+
+def compute_rate_from_kde(KDE, VT, weights_over_VT=None, N=None, vt_weights=True):
+    """
+    Compute merger rate from KDE using the same weighting scheme.
+    
+    Parameters
+    ----------
+    KDE : np.ndarray
+        KDE values on grid (can be 1D, 2D, or 3D)
+    VT : np.ndarray
+        Survey volume-time on the same grid
+    weights_over_VT : np.ndarray or None
+        Bootstrap weights divided by VT (if using VT weighting)
+    N : int or None
+        Number of events (if not using VT weighting)
+    vt_weights : bool
+        Whether to use VT weighting scheme
+        
+    Returns
+    -------
+    Rate : np.ndarray
+        Merger rate on the same grid as KDE
+        
+    Examples
+    --------
+    # With VT weighting:
+    >>> Rate = compute_rate_from_kde(KDE_2d, VT_2d, 
+    ...                               weights_over_VT=weights_over_VT, 
+    ...                               vt_weights=True)
+    
+    # Without VT weighting:
+    >>> Rate = compute_rate_from_kde(KDE_1d, VT_1d, N=42, vt_weights=False)
+    """
+    if vt_weights:
+        if weights_over_VT is None:
+            raise ValueError("weights_over_VT must be provided when vt_weights=True")
+        # KDE kernels are weighted by 1/VT
+        Rate = weights_over_VT.sum() * KDE
+    else:
+        if N is None:
+            raise ValueError("N must be provided when vt_weights=False")
+        Rate = N * KDE / VT
+
+    return Rate
+
 ###################################################################
 # Get original mean sample points
 if opts.samplesx1 and opts.samplesx2 and opts.samplesx3:
@@ -486,13 +532,14 @@ for i in range(1260, 2010, 1):
 
         # ========== 2D: M1 vs Chieff ==========
         keep_dims = [0, 2]
+        symmetric_factor = 1./2
         kde_result = create_marginalized_kde(
             samples=samples,
             keep_dims=keep_dims,
             apply_constraint=get_constraint(keep_dims),
             **common_params
         )
-        kdeM1chieff = kde_result['kde_values']
+        kdeM1chieff = kde_result['kde_values'] * symmetric_factor
         rateM1chieff = compute_rate_from_kde(
             kdeM1chieff, VT_3d,
             weights_over_VT=weights_over_VT if vt_weights else None,
@@ -502,13 +549,14 @@ for i in range(1260, 2010, 1):
 
         # ========== 2D: M2 vs Chieff ==========
         keep_dims = [1, 2]
+        symmetric_factor = 1./2
         kde_result = create_marginalized_kde(
             samples=samples,
             keep_dims=keep_dims,
             apply_constraint=get_constraint(keep_dims),
             **common_params
         )
-        kdeM2chieff = kde_result['kde_values']
+        kdeM2chieff = kde_result['kde_values']*symmetric_factor
         rateM2chieff = compute_rate_from_kde(
             kdeM2chieff, VT_3d,
             weights_over_VT=weights_over_VT if vt_weights else None,
@@ -518,13 +566,14 @@ for i in range(1260, 2010, 1):
 
         # ========== 2D: M1 vs M2 (no constraint) ==========
         keep_dims = [0, 1]
+        symmetric_factor = 1.
         kde_result = create_marginalized_kde(
             samples=samples,
             keep_dims=keep_dims,
             apply_constraint=get_constraint(keep_dims),
             **common_params
         )
-        KDEm1m2 = kde_result['kde_values']
+        KDEm1m2 = kde_result['kde_values']*symmetric_factor
         ratem1m2 = compute_rate_from_kde(
             KDEm1m2, VT_3d,
             weights_over_VT=weights_over_VT if vt_weights else None,
