@@ -211,7 +211,7 @@ def marginalize_kde_data(data_nd, per_point_bw, keep_dims,
 
     return {
         'data': data_marginalized,
-        'bandwidth': per_point_bw,  # Same per-point bandwidths
+        'bandwidth': per_point_bw,  
         'input_transf': input_transf_marg,
         'rescale': rescale_marg,
         'weights': weights,
@@ -233,8 +233,8 @@ def create_marginalized_kde(
     cfgrid,
     alpha,
     group,
-    apply_symmetry=True,
-    apply_constraint='m1>=m2',
+    apply_symmetry=False,
+    apply_constraint=None,
     dimension_names=None
 ):
     """
@@ -261,10 +261,10 @@ def create_marginalized_kde(
         Adaptive bandwidth parameter (only used if 'perpoint_bws' not in group)
     group : h5py.Group
         HDF5 group containing 'perpoint_bws' key
-    apply_symmetry : bool, default True
-        Whether to apply symmetry by swapping m1↔m2 (dims 0↔1)
-    apply_constraint : str or None, default 'm1>=m2'
-        Constraint to apply. Options: 'm1>=m2' or None
+    apply_symmetry : bool, default False
+        Whether to apply symmetry by swapping m1↔m2 (dims 0↔1) 
+    apply_constraint : str or None, default None
+        Constraint to apply. Options: 'm1>=m2' for symmetry
     dimension_names : list, optional
         Names of dimensions (default: ['m1', 'm2', 'chieff'])
 
@@ -459,10 +459,9 @@ RateM2chieff = []
 boots_weighted = False
 vt_weights = False  # Flag to control VT weighting
 
-for i in range(1260, 2010, 1):
-#for i in range(opts.end_iter - opts.start_iter):
-    it = i #+ opts.discard + opts.start_iter
-    ilabel = i #+ opts.start_iter
+for i in range(opts.end_iter - opts.start_iter):
+    it = i + opts.discard + opts.start_iter
+    ilabel = i + opts.start_iter
     if it % 5 == 0: print(it)
     iter_name = f'iteration_{it}'
     if iter_name not in hdf:
@@ -478,7 +477,6 @@ for i in range(1260, 2010, 1):
 
     # Check if VT weighting should be used
     if 'rwvt_vals' in group:
-    #if 'Wrongrwvt_vals' in group:
         vt_weights = True
         vt_vals = group['rwvt_vals'][:] / 1e9  # change units to Gpc^3
 
@@ -494,7 +492,7 @@ for i in range(1260, 2010, 1):
     cf = samples[:, 2]
     ########################
 
-    # Compute weights (no duplication yet)
+    # Determine weights based on vt_weights flag
     if boots_weighted:
         if vt_weights:
             weights_over_VT = poisson_weights / vt_vals
@@ -504,7 +502,6 @@ for i in range(1260, 2010, 1):
     else:
         weights = None
 
-    # ========== argparse option based on integrate_kde option ==========
     if opts.integrate_kde == 'marginalized':
         # ========== MARGINALIZED KDE METHOD ==========
         per_point_bandwidth = group['perpoint_bws'][...]
