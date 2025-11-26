@@ -42,7 +42,6 @@ parser.add_argument('--start-iter', type=int, help='start at iteration START_ITE
 parser.add_argument('--end-iter', type=int, help='end at iteration END_ITER after discards')
 parser.add_argument('--integrate-kde', type=str, default='marginalized', choices=['marginalized', 'numeric'], help='KDE integration method: "marginalized" (integrate analytically) or "numeric" (3D KDE then numerical integration)')
 #  Marginalization in any dimension
-parser.add_argument('--keep-dims', type=int, nargs='+', default=[0, 1, 2], help='Dimensions to keep (e.g., "0 1" or "0" or "1 2")')
 # Plots and saving data
 parser.add_argument('--pathplot', default='./', help='public_html path for plots')
 parser.add_argument('--output-tag', required=True)
