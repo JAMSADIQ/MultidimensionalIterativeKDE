@@ -187,9 +187,10 @@ for i in range(opts.end_iter - opts.start_iter):
     group = hdf[iter_name]
     if 'bootstrap_weights' in group:
         boots_weighted = True
-        poisson_weights = group['bootstrap_weights'][:]
-        assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
-        Nboots = poisson_weights.sum()  # Number of events in bootstrap
+        weights = group['bootstrap_weights'][:]
+        # Allow zero weights as corner case
+#        assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
+        Nboots = weights.sum()  # Number of events in bootstrap
 
     # Check if VT weighting should be used
     if 'rwvt_vals' in group:
@@ -197,6 +198,15 @@ for i in range(opts.end_iter - opts.start_iter):
         vt_vals = group['rwvt_vals'][:] / 1e9  # change units to Gpc^3
 
     samples = group['rwsamples'][:]
+    if boots_weighted:
+        # Remove samples with zero bootstrap weight as they may have bad behaviour in
+        # adaptive KDE (due to extremely small pilot density at the sample location)
+        # and have no effect on the KDE, and to reduce compute cost
+        samples = samples[weights > 0., :]
+        if vt_weights: vt_vals = vt_vals[weights > 0.]
+        # Make sure all arrays are the same length
+        weights = weights[weights > 0.]
+
     alpha = group['alpha'][()]
     bwx = group['bwx'][()]
     bwy = group['bwy'][()]
@@ -213,11 +223,11 @@ for i in range(opts.end_iter - opts.start_iter):
     # Determine weights based on vt_weights flag
     if boots_weighted:
         if vt_weights:
-            weights_over_VT = poisson_weights / vt_vals
+            weights_over_VT = weights / vt_vals
             # Duplicate weights for symmetric samples (m1 <-> m2)
             weights = np.tile(weights_over_VT, 2)
         else:
-            weights = np.tile(poisson_weights, 2)
+            weights = np.tile(weights, 2)
     else:
         weights = None
 
@@ -295,12 +305,12 @@ print('Making plots')
 
 iter_tag = f"iter{opts.start_iter}_{opts.end_iter}"
 rate_m1m2_med = np.percentile(rate_m1m2, 50, axis=0)
-u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate')
+#u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate')
 
-u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(KDEM1chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_1')
-u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(KDEM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_2')
+#u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(KDEM1chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_1')
+#u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(KDEM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_2')
 u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(RateM1chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_1')
-u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(RateM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_2')
+#u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(RateM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_2')
 
 # 1-d rate vs masses
 u_plot.oned_rate_mass(m1grid, m2grid, ratem1_arr, ratem2_arr, tag=iter_tag, pathplot=opts.pathplot)
@@ -309,5 +319,5 @@ u_plot.oned_rate_mass(m1grid, m2grid, ratem1_arr, ratem2_arr, tag=iter_tag, path
 m1_slice_values = np.array([10, 15, 20, 25, 35, 45, 55, 70])
 m2_slice_values = m1_slice_values * 2./3.
 u_plot.chieff_offset_plot(m1grid, cfgrid, m1_slice_values, RateM1chieff, offset_increment=5, m_label='m_1', tag=iter_tag, pathplot=opts.pathplot)
-u_plot.chieff_offset_plot(m1grid, cfgrid, m2_slice_values, RateM2chieff, offset_increment=5, m_label='m_2', tag=iter_tag, pathplot=opts.pathplot)
+#u_plot.chieff_offset_plot(m1grid, cfgrid, m2_slice_values, RateM2chieff, offset_increment=5, m_label='m_2', tag=iter_tag, pathplot=opts.pathplot)
 
