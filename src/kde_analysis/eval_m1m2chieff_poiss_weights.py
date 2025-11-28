@@ -41,7 +41,6 @@ parser.add_argument('--discard', default=100, type=int, help='discard first DISC
 parser.add_argument('--start-iter', type=int, help='start at iteration START_ITER after discards')
 parser.add_argument('--end-iter', type=int, help='end at iteration END_ITER after discards')
 parser.add_argument('--integrate-kde', type=str, default='marginalized', choices=['marginalized', 'numeric'], help='KDE integration method: "marginalized" (integrate analytically) or "numeric" (3D KDE then numerical integration)')
-#  Marginalization in any dimension
 # Plots and saving data
 parser.add_argument('--pathplot', default='./', help='public_html path for plots')
 parser.add_argument('--output-tag', required=True)
@@ -489,7 +488,6 @@ for i in range(opts.end_iter - opts.start_iter):
     m1 = samples[:, 0]  # First column corresponds to m1
     m2 = samples[:, 1]  # Second column corresponds to m2
     cf = samples[:, 2]
-    ########################
 
     # Determine weights based on vt_weights flag
     if boots_weighted:
@@ -519,7 +517,7 @@ for i in range(opts.end_iter - opts.start_iter):
             'dimension_names': ['m1', 'm2', 'chieff']
         }
 
-        # Helper function to determine constraint based on keep_dims
+        # Helper function 
         def get_constraint(keep_dims):
             """Apply constraint unless we're keeping full m1-m2 plane"""
             if set(keep_dims) == {0, 1}:
@@ -622,7 +620,7 @@ for i in range(opts.end_iter - opts.start_iter):
         rateM1chieff, rateM2chieff = get_rate_m_chieff2D(m1grid, m2grid, Rate_3d)
         ratem1m2, ratechim1m2, ratechisqm1m2 = integral_wrt_chieff(CF, cfgrid, Rate_3d)
 
-    #Get one dimensional rates using ratem1m2 by numerically integrating over m1>m2
+    # Get 1d rates over masses by numerically integrating ratem1m2 over m1>m2
     rateM1, rateM2 = get_rate_m_oneD(m1grid, m2grid, ratem1m2)
 
 
@@ -659,30 +657,10 @@ hfintegm2chieff.close()
 print('Making plots')
 
 rate_m1m2_med = np.percentile(rate_m1m2[:], 50, axis=0)
-rate_m1Xieff_med = np.percentile(RateM1chieff[:], 50, axis=0)
-rate_m2Xieff_med = np.percentile(RateM2chieff[:], 50, axis=0)
+rate_m1chieff_med = np.percentile(RateM1chieff[:], 50, axis=0)
+rate_m2chieff_med = np.percentile(RateM2chieff[:], 50, axis=0)
 
-u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, timesM=True, itertag=f'{ilabel}', pathplot='PEprior314/NCombined_', plot_name='Rate')
-u_plot.m_chieff_contour(mean1, mean3, M, CF, rate_m1Xieff_med, timesM=True, itertag=f'{ilabel}', pathplot='PEprior314/NCombined_', plot_name='Rate', xlabel='m_1')
-u_plot.m_chieff_contour(mean1, mean3, M, CF, rate_m2Xieff_med, timesM=True, itertag=f'{ilabel}', pathplot='PEprior314/NCombined_', plot_name='Rate', xlabel='m_2')
-u_plot.oned_rate_mass(m1grid, m2grid, ratem1_arr, ratem2_arr, tag='', pathplot='PEprior314/NCombined_')
-quit()
-
-iter_tag = f"iter{opts.start_iter}_{opts.end_iter}"
-rate_m1m2_med = np.percentile(rate_m1m2, 50, axis=0)
-u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate')
-
-u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(KDEM1chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_1')
-u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(KDEM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='KDE', xlabel='m_2')
-u_plot.m_chieff_contour(mean1, mean3, M, CF, np.percentile(RateM1chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_1')
-u_plot.m_chieff_contour(mean2, mean3, M, CF, np.percentile(RateM2chieff, 50, axis=0), timesM=True, itertag=iter_tag, pathplot=opts.pathplot, plot_name='Rate', xlabel='m_2')
-
-# 1-d rate vs masses
-u_plot.oned_rate_mass(m1grid, m2grid, ratem1_arr, ratem2_arr, tag=iter_tag, pathplot=opts.pathplot)
-
-######offset chieff plot ######################
-m1_slice_values = np.array([10, 15, 20, 25, 35, 45, 55, 70])
-m2_slice_values = m1_slice_values * 2./3.
-u_plot.chieff_offset_plot(m1grid, cfgrid, m1_slice_values, RateM1chieff, offset_increment=5, m_label='m_1', tag=iter_tag, pathplot=opts.pathplot)
-u_plot.chieff_offset_plot(m1grid, cfgrid, m2_slice_values, RateM2chieff, offset_increment=5, m_label='m_2', tag=iter_tag, pathplot=opts.pathplot)
-
+u_plot.m1m2_contour(mean1, mean2, M1, M2, rate_m1m2_med, timesM=True, itertag=f'{ilabel}', pathplot=opts.pathplot, plot_name='Rate')
+u_plot.m_chieff_contour(mean1, mean3, M, CF, rate_m1chieff_med, timesM=True, itertag=f'{ilabel}', pathplot=opts.pathplot, plot_name='Rate', xlabel='m_1')
+u_plot.m_chieff_contour(mean1, mean3, M, CF, rate_m2chieff_med, timesM=True, itertag=f'{ilabel}', pathplot=opt.pathplot, plot_name='Rate', xlabel='m_2')
+u_plot.oned_rate_mass(m1grid, m2grid, ratem1_arr, ratem2_arr, tag='', pathplot=opts.pathplot)
