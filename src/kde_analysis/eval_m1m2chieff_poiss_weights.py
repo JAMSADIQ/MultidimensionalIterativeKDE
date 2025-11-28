@@ -469,9 +469,9 @@ for i in range(opts.end_iter - opts.start_iter):
     group = hdf[iter_name]
     if 'bootstrap_weights' in group:
         boots_weighted = True
-        poisson_weights = group['bootstrap_weights'][:]
-        assert min(poisson_weights) > 0, "Some bootstrap weights are non-positive!"
-        Nboots = poisson_weights.sum()  # Number of events in bootstrap
+        weights = group['bootstrap_weights'][:]
+        assert min(weights) > 0, "Some bootstrap weights are non-positive!"
+        Nboots = weights.sum()  # Number of events in bootstrap
 
     # Check if VT weighting should be used
     if 'rwvt_vals' in group:
@@ -479,6 +479,15 @@ for i in range(opts.end_iter - opts.start_iter):
         vt_vals = group['rwvt_vals'][:] / 1e9  # change units to Gpc^3
 
     samples = group['rwsamples'][:]
+    if boots_weighted:
+        # Remove samples with zero bootstrap weight as they may have bad behaviour in
+        # adaptive KDE (due to extremely small pilot density at the sample location)
+        # and have no effect on the KDE, and to reduce compute cost
+        samples = samples[weights > 0., :]
+        if vt_weights: vt_vals = vt_vals[weights > 0.]
+        # Make sure all arrays are the same length
+        weights = weights[weights > 0.]
+
     alpha = group['alpha'][()]
     bwx = group['bwx'][()]
     bwy = group['bwy'][()]
