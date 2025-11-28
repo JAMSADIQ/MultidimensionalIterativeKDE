@@ -284,7 +284,7 @@ def create_marginalized_kde(
 
     n_dims = len(keep_dims)
 
-    # Step 1: Marginalize the data (this will apply symmetry and constraint)
+    # Step 1: Marginalize the data 
     result = marginalize_kde_data(
         data_nd=samples,
         per_point_bw=per_point_bw,
