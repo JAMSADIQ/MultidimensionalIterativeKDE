@@ -501,7 +501,7 @@ for i in range(opts.end_iter - opts.start_iter):
     # Determine weights based on vt_weights flag
     if boots_weighted:
         if vt_weights:
-            weights_over_VT = poisson_weights / vt_vals
+            weights_over_VT = weights / vt_vals
             weights = weights_over_VT
         else:
             weights = poisson_weights
