@@ -575,12 +575,9 @@ for i in range(opts.end_iter - opts.start_iter):
         )
 
 
-    else:  # opts.integrate_kde == 'numeric'
+    else:  
         # ========== FULL 3D KDE METHOD ==========
         # Create symmetric samples manually
-        m1 = samples[:, 0]
-        m2 = samples[:, 1]
-        cf = samples[:, 2]
         samples2 = np.vstack((m2, m1, cf)).T
         symmetric_samples = np.vstack((samples, samples2))
 
